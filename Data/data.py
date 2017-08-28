@@ -1,5 +1,4 @@
 import sys
-import os
 import xlrd
 import math as m
 import numpy as np
