@@ -1,3 +1,7 @@
+# https://developers.google.com/optimization/routing/tsp/vehicle_routing
+# https://developers.google.com/optimization/routing/tsp/vehicle_routing_time_windows
+
+
 from ortools.constraint_solver import pywrapcp
 from ortools.constraint_solver import routing_enums_pb2
 import data
