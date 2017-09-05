@@ -14,7 +14,7 @@ V       =   6 # Autos
 V_dict  =   {}# {1:"Auto1",2:"Auto2",3:"Auto3",4:"Auto4",5:"Auto5",6:"Auto6"}
 for i in range(1,V+1):
     V_dict[i] = "Auto "+str(i)
-print(V_dict)
+# print(V_dict)
 # Produktionskosten
 c_PF    =   3000    # Fix pro genutzte Produktionslinie
 cp	    =   1200    # Stundensatz pro Produktionslinie
@@ -29,6 +29,8 @@ a_i	    =   np.array(( 60, 120, 250, 500))  # Strahlungsaktivität
 # Städte
 J	    =   {0:"Leipzig",1:"Halle",2:"Dessau",3:"Magdeburg",
              4:"Chemnitz",5:"Dresden",6:"Jena",7:"Erfurt"}
+J = list(J.values())
+print(J)
 # Spezifische Entladezeiten
 S_j	    =   np.array((15, 30, 30, 15, 30, 15, 30, 15))
 S_j     =   S_j[:, np.newaxis]
@@ -80,7 +82,7 @@ t_a_max = [] # [256 384 520 648]
 for i in range(0,len(a_i)):
     t_a_max.append(int(m.ceil(m.log(a_max/a_i[i])/m.log(np.power(c,(1/intervall))))))
 t_a_max = np.array(t_a_max)
-print(t_a_max)
+# print(t_a_max)
 
 t_a_min = [] # [458 586 722 850]
 for i in range(0,len(a_i)):
@@ -89,7 +91,7 @@ t_a_min = np.array
 
 # Ankunftszeit
 t_arrive = array_Time - S_j
-print(t_arrive)
+# print(t_arrive)
 
 demands = Time[:]
 for i in range(0,len(Time)):
@@ -99,4 +101,4 @@ for i in range(0,len(Time)):
 
 
 demands = demands * S_j
-print(demands)
+# print(demands)

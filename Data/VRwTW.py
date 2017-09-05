@@ -37,11 +37,13 @@
 """
 import os
 import numpy as np
+import dataIMC
 from matplotlib import pyplot as plt
 from collections import namedtuple
 from ortools.constraint_solver import pywrapcp
 from ortools.constraint_solver import routing_enums_pb2
 from datetime import datetime, timedelta
+
 
 
 class Customers():
@@ -96,10 +98,10 @@ class Customers():
 
 
     """
-    def __init__(self, extents=None, center=(53.381393, -1.474611),
-                 box_size=10, num_stops=100,
-                 min_demand=0, max_demand=25,
-                 min_tw=1, max_tw=5):
+    def __init__(self, extents=None, center=(0, 0),
+                 box_size=1000, num_stops=8,
+                 min_demand=100, max_demand=125,
+                 min_tw=10, max_tw=500):
         self.number = num_stops  #: The number of customers and depots
         #: Location, a named tuple for locations.
         Location = namedtuple("Location", ['lat', 'lon'])
@@ -127,7 +129,7 @@ class Customers():
                                            np.cos(np.deg2rad(clat)))),
                             'urcrnrlat': clat + 180 * box_size / circ_earth}
         # The 'name' of the stop, indexed from 0 to num_stops-1
-        stops = np.array(range(0, num_stops))
+        stops = np.array(range(0, num_stops)) # dataIMC.J
         # normaly distributed random distribution of stops within the box
         stdv = 6  # the number of standard deviations 99.9% will be within +-3
         lats = (self.extents['llcrnrlat'] + np.random.randn(num_stops) *
@@ -135,8 +137,8 @@ class Customers():
         lons = (self.extents['llcrnrlon'] + np.random.randn(num_stops) *
                 (self.extents['urcrnrlon'] - self.extents['llcrnrlon']) / stdv)
         # uniformly distributed integer demands.
-        demmands = np.random.randint(min_demand, max_demand, num_stops)
-
+        demmands =  np.random.randint(15*60, 30*60, num_stops) # dataIMC.demands#[:]
+        print(demmands)
         self.time_horizon = 24 * 60 ** 2  # A 24 hour period.
 
         # The customers demand min_tw to max_tw hour time window for each
@@ -167,8 +169,8 @@ class Customers():
                                  start_times, stop_times)]
 
         # The number of seconds needed to 'unload' 1 unit of goods.
-        self.service_time_per_dem = 300  # seconds
-
+        self.service_time_per_dem = 60  # seconds
+        print(self.customers)
     def central_start_node(self, invert=False):
         """
         Return a random starting node, with probability weighted by distance
@@ -348,14 +350,14 @@ class Customers():
         Args:
             speed_kmph: the average speed in km/h
         Returns:
-            function [tranit_time_return(a, b)]: A function that takes the
+            function [transit_time_return(a, b)]: A function that takes the
                 from/a node index and the to/b node index and returns the
                 tranit time from a to b.
         """
-        def tranit_time_return(a, b):
+        def transit_time_return(a, b):
             return(self.distmat[a][b] / (speed_kmph * 1.0 / 60 ** 2))
 
-        return tranit_time_return
+        return transit_time_return
 
 
 class Vehicles():
@@ -584,7 +586,7 @@ def plot_vehicle_routes(veh_route, ax1, customers, vehicles):
 
 def main():
     # Create a set of customer, (and depot) stops.
-    customers = Customers(num_stops=50, min_demand=1,
+    customers = Customers(num_stops=7, min_demand=1,
                           max_demand=15, box_size=40,
                           min_tw=3, max_tw=6)
 
@@ -601,10 +603,10 @@ def main():
         return serv_time_fn(a, b) + transit_time_fn(a, b)
 
     # Create a list of inhomgenious vehicle capacities as integer units.
-    capacity = [50, 75, 100, 125, 150, 175, 200, 250]
+    capacity = [100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000]
 
     # Create a list of inhomogenious fixed vehicle costs.
-    cost = [int(100 + 2 * np.sqrt(c)) for c in capacity]
+    cost = [dataIMC.M_F for c in capacity]
 
     # Create a set of vehicles, the number set by the length of capacity.
     vehicles = Vehicles(capacity=capacity, cost=cost)
@@ -687,7 +689,7 @@ def main():
     non_depot = set(range(customers.number))
     non_depot.difference_update(vehicles.starts)
     non_depot.difference_update(vehicles.ends)
-    penalty = 400000  # The cost for dropping a node from the plan.
+    penalty = 40000000  # The cost for dropping a node from the plan.
     nodes = [routing.AddDisjunction([int(c)], penalty) for c in non_depot]
 
     # This is how you would implement partial routes if you already knew part
