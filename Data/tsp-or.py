@@ -4,7 +4,7 @@
 
 from ortools.constraint_solver import pywrapcp
 from ortools.constraint_solver import routing_enums_pb2
-import data
+import dataIMC
 
 # Distance callback
 class CreateDistanceCallback(object):
@@ -12,7 +12,7 @@ class CreateDistanceCallback(object):
   def __init__(self):
     """Array of distances between points."""
 
-    self.matrix = data.L
+    self.matrix = dataIMC.L
     # self.matrix = [
     # [   0, 2451,  713, 1018, 1631, 1374, 2408,  213, 2571,  875, 1420, 2145, 1972], # New York
     # [2451,    0, 1745, 1524,  831, 1240,  959, 2596,  403, 1589, 1374,  357,  579], # Los Angeles
@@ -45,13 +45,13 @@ class CreateDemandCallback(object):
 def main():
 
   # Cities
-  city_names = data.J
+  city_names = dataIMC.J
   # city_names = ["New York", "Los Angeles", "Chicago", "Minneapolis", "Denver", "Dallas", "Seattle",
   #               "Boston", "San Francisco", "St. Louis", "Houston", "Phoenix", "Salt Lake City"]
 
   tsp_size = len(city_names)
   num_routes = 1    # The number of routes, which is 1 in the TSP.
-  num_vehicles = data.V
+  num_vehicles = dataIMC.V
   # Nodes are indexed from 0 to tsp_size - 1. The depot is the starting node of the route.
   depot = 0
 

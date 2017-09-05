@@ -72,8 +72,8 @@ Time    =   [[480, 490, 510, 520, 540, 550, 560, 570, 600, 620, 660, 680, 720, 7
              [440, 445, 450, 490, 495, 510, 600, 620, 625, 630, 640, 645, 650, 660, 675, 680, 690, 705, 720, 730, 735, 795, 810, 825, 845, 850, 860, 890, 895, 905,
               925,  950,  985,  990, 1010, 1020, 1040, 1050, 1055, 1065,    0,    0,    0,    0,    0,    0,    0,    0]]
 
-Time = np.array(Time)
-# print(Time)
+array_Time = np.array(Time)
+# print(array_Time)
 
 # Einsatzzeitfenster
 t_a_max = [] # [256 384 520 648]
@@ -88,5 +88,15 @@ for i in range(0,len(a_i)):
 t_a_min = np.array
 
 # Ankunftszeit
-t_arrive = Time - S_j
+t_arrive = array_Time - S_j
 print(t_arrive)
+
+demands = Time[:]
+for i in range(0,len(Time)):
+    for j in range(0, len(Time[i])):
+        if demands[i][j] > 0:
+            demands[i][j] = 1
+
+
+demands = demands * S_j
+print(demands)
