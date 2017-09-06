@@ -117,6 +117,7 @@ class Customers():
         else:
             #: Location[lat,lon]: the centre point of the area.
             (clat, clon) = self.center = Location(center[0], center[1])
+            print(self.center)
             rad_earth = 6367  # km
             circ_earth = np.pi * rad_earth
             #: The lower left and upper right points
@@ -130,6 +131,7 @@ class Customers():
                             'urcrnrlat': clat + 180 * box_size / circ_earth}
         # The 'name' of the stop, indexed from 0 to num_stops-1
         stops = np.array(range(0, num_stops)) # dataIMC.J
+        print(stops)
         # normaly distributed random distribution of stops within the box
         stdv = 6  # the number of standard deviations 99.9% will be within +-3
         lats = (self.extents['llcrnrlat'] + np.random.randn(num_stops) *
@@ -137,14 +139,14 @@ class Customers():
         lons = (self.extents['llcrnrlon'] + np.random.randn(num_stops) *
                 (self.extents['urcrnrlon'] - self.extents['llcrnrlon']) / stdv)
         # uniformly distributed integer demands.
-        demmands =  np.random.randint(15*60, 30*60, num_stops) # dataIMC.demands#[:]
+        demmands =  np.random.randint(15, 30, num_stops) # dataIMC.demands#[:]
         print(demmands)
-        self.time_horizon = 24 * 60 ** 2  # A 24 hour period.
+        self.time_horizon = 24 * 60  # A 24 hour period.
 
         # The customers demand min_tw to max_tw hour time window for each
         # delivery
-        time_windows = np.random.random_integers(min_tw * 3600,
-                                                 max_tw * 3600, num_stops)
+        time_windows = np.random.random_integers(min_tw * 60,
+                                                 max_tw * 60, num_stops)
         # The last time a delivery window can start
         latest_time = self.time_horizon - time_windows
         start_times = [None for o in time_windows]
@@ -169,8 +171,8 @@ class Customers():
                                  start_times, stop_times)]
 
         # The number of seconds needed to 'unload' 1 unit of goods.
-        self.service_time_per_dem = 60  # seconds
-        print(self.customers)
+        self.service_time_per_dem = 1  # seconds
+        # print(self.customers)
     def central_start_node(self, invert=False):
         """
         Return a random starting node, with probability weighted by distance
@@ -205,9 +207,10 @@ class Customers():
                                       size=1,
                                       replace=True,
                                       p=prob.flatten())
+        print(start_node[0])
         return start_node[0]
 
-    def make_distance_mat(self, method='haversine'):
+    def make_distance_mat(self): #, method='haversine'
         """
         Return a distance matrix and make it a member of Customer, using the
         method given in the call. Currently only Haversine (GC distance) is
@@ -226,18 +229,21 @@ class Customers():
             >>> dist_mat = customers.make_distance_mat(method='manhattan')
             AssertionError
         """
-        self.distmat = np.zeros((self.number, self.number))
-        methods = {'haversine': self._haversine}
-        assert(method in methods)
-        for frm_idx in range(self.number):
-            for to_idx in range(self.number):
-                if frm_idx != to_idx:
-                    frm_c = self.customers[frm_idx]
-                    to_c = self.customers[to_idx]
-                    self.distmat[frm_idx, to_idx] = self._haversine(frm_c.lon,
-                                                                    frm_c.lat,
-                                                                    to_c.lon,
-                                                                    to_c.lat)
+        self.distmat = np.array(dataIMC.L)
+        print(self.distmat)
+        # self.distmat = np.zeros((self.number, self.number))
+        # methods = {'haversine': self._haversine}
+        # assert(method in methods)
+        # for frm_idx in range(self.number):
+        #     for to_idx in range(self.number):
+        #         if frm_idx != to_idx:
+        #             frm_c = self.customers[frm_idx]
+        #             to_c = self.customers[to_idx]
+        #             self.distmat[frm_idx, to_idx] = self._haversine(frm_c.lon,
+        #                                                             frm_c.lat,
+        #                                                             to_c.lon,
+        #                                                             to_c.lat)
+        # print(self.distmat)
         return(self.distmat)
 
     def _haversine(self, lon1, lat1, lon2, lat2):
@@ -331,7 +337,7 @@ class Customers():
         """
         Return a callback function that provides the time spent servicing the
         customer.  Here is it proportional to the demand given by
-        self.service_time_per_dem, default 300 seconds per unit demand.
+        self.service_time_per_dem, default 5 seconds per unit demand.
 
         Returns:
             function [dem_return(a, b)]: A function that takes the from/a node
@@ -343,7 +349,7 @@ class Customers():
 
         return service_time_return
 
-    def make_transit_time_callback(self, speed_kmph=10):
+    def make_transit_time_callback(self, speed_kmph=100):
         """
         Creates a callback function for transit time. Assuming an average
         speed of speed_kmph
@@ -355,7 +361,7 @@ class Customers():
                 tranit time from a to b.
         """
         def transit_time_return(a, b):
-            return(self.distmat[a][b] / (speed_kmph * 1.0 / 60 ** 2))
+            return(self.distmat[a][b] / (speed_kmph * 1.0 / 60))
 
         return transit_time_return
 
@@ -415,7 +421,7 @@ class Vehicles():
     def get_total_capacity(self):
         return(sum([c.capacity for c in self.vehicles]))
 
-    def return_starting_callback(self, customers, sameStartFinish=False):
+    def return_starting_callback(self, customers, sameStartFinish=True):
         # create a different starting and finishing depot for each vehicle
         self.starts = [int(customers.central_start_node()) for o in
                        range(self.number)]
@@ -551,6 +557,7 @@ def plot_vehicle_routes(veh_route, ax1, customers, vehicles):
         lats, lons = zip(*[(c.lat, c.lon) for c in veh_route[veh_number]])
         lats = np.array(lats)
         lons = np.array(lons)
+        print(lats, lons)
         s_dep = customers.customers[vehicles.starts[veh_number]]
         s_fin = customers.customers[vehicles.ends[veh_number]]
         ax1.annotate('v({veh}) S @ {node}'.format(
@@ -586,7 +593,7 @@ def plot_vehicle_routes(veh_route, ax1, customers, vehicles):
 
 def main():
     # Create a set of customer, (and depot) stops.
-    customers = Customers(num_stops=7, min_demand=1,
+    customers = Customers(num_stops=8, min_demand=1,
                           max_demand=15, box_size=40,
                           min_tw=3, max_tw=6)
 
@@ -617,7 +624,7 @@ def main():
 
     # Set the starting nodes, and create a callback fn for the starting node.
     start_fn = vehicles.return_starting_callback(customers,
-                                                 sameStartFinish=False)
+                                                 sameStartFinish=True)
 
 
     # Set model parameters

@@ -30,7 +30,7 @@ a_i	    =   np.array(( 60, 120, 250, 500))  # Strahlungsaktivität
 J	    =   {0:"Leipzig",1:"Halle",2:"Dessau",3:"Magdeburg",
              4:"Chemnitz",5:"Dresden",6:"Jena",7:"Erfurt"}
 J = list(J.values())
-print(J)
+# print(J)
 # Spezifische Entladezeiten
 S_j	    =   np.array((15, 30, 30, 15, 30, 15, 30, 15))
 S_j     =   S_j[:, np.newaxis]
@@ -45,7 +45,7 @@ L   =   [[  0,  27,  43,  80,  53,  75,  61,  91],
          [ 75,  91, 107, 144,  49,   0, 107, 134],
          [ 61,  70,  86, 123,  67, 107,   0,  34],
          [ 91,  73,  86, 106,  93, 134,  34,   0]]
-
+L = np.array(L)
 # Fahrzeitmatrix
 T   =   [[  0,  27,  57,  88,  65,  85,  73,  93],
          [ 27,   0,  43,  60,  90,  95,  70,  82],
@@ -55,7 +55,7 @@ T   =   [[  0,  27,  57,  88,  65,  85,  73,  93],
          [ 85,  95, 112, 140,  65,   0, 105, 133],
          [ 73,  70,  87, 121,  74, 105,   0,  45],
          [ 93,  82, 115, 124,  98, 133,  45,   0]]
-
+T = np.array(T)
 # Zeitplan
 Time    =   [[480, 490, 510, 520, 540, 550, 560, 570, 600, 620, 660, 680, 720, 740, 780, 800, 840, 870, 900, 930, 970, 990,   0,   0,   0,   0,   0,   0,   0,   0,
                 0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0],
@@ -87,11 +87,14 @@ t_a_max = np.array(t_a_max)
 t_a_min = [] # [458 586 722 850]
 for i in range(0,len(a_i)):
     t_a_min.append(int(m.floor(m.log(a_min/a_i[i])/m.log(np.power(c,(1/intervall))))))
-t_a_min = np.array
+t_a_min = np.array(t_a_min)
 
 # Ankunftszeit
-t_arrive = array_Time - S_j
-# print(t_arrive)
+print(array_Time[:,0], "array_Time[:,0] aka. first use")
+t_arrive = array_Time - S_j - 30
+print(t_arrive[:,0], "t_arrive[:,0]")
+t_go = t_arrive[:,0] - T[:,0]
+print(t_go, "t_go")
 
 demands = Time[:]
 for i in range(0,len(Time)):
@@ -102,3 +105,35 @@ for i in range(0,len(Time)):
 
 demands = demands * S_j
 # print(demands)
+Time_min = array_Time[:,0]
+
+Time_max = []
+for i in range(0,len(array_Time[:,0])):
+    x = next(x for x in reversed(array_Time[i]) if x != 0)
+    Time_max.append(x)
+print(Time_min, "Time_min\n", Time_max, "Time_max")
+
+time_first_last = Time_max - Time_min
+print(time_first_last, "time_first_last")
+
+t_a_range = 0
+for i in range(0,len(t_a_max)):
+    t_a_range += t_a_min[i] - t_a_max[i]
+
+time_to_first_use = t_a_range - time_first_last
+print(time_to_first_use, "time_to_first_use if last product is used at 1075")
+
+counter = [0, 0, 0, 0]
+
+for i in range(0,len(array_Time[:,0])):
+    for j in range(0,len(array_Time[0])):
+        if array_Time[i,j] <= 622 and array_Time[i,j] > 0:
+            counter[0] += 1
+        elif array_Time[i,j] <= 824 and array_Time[i,j] > 0:
+            counter[1] += 1
+        elif array_Time[i,j] <= 965 and array_Time[i,j] > 0:
+            counter[2] += 1
+        elif array_Time[i,j] <= 1075 and array_Time[i,j] > 0:
+            counter[3] += 1
+
+print(counter) # [93, 94, 80, 48]
