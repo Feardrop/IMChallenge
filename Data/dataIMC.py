@@ -9,7 +9,7 @@ a_min   =   5
 c       =   0.85
 intervall = 30
 # Instanzen
-P       =   4 # Fahrer
+P       =   4 # Produktionslinien
 V       =   6 # Autos
 V_dict  =   {}# {1:"Auto1",2:"Auto2",3:"Auto3",4:"Auto4",5:"Auto5",6:"Auto6"}
 for i in range(1,V+1):
@@ -129,7 +129,7 @@ for i in range(0,len(t_a_max)):
 time_to_first_use = t_a_range - time_first_last
 print(time_to_first_use, "time_to_first_use if last product is used at 1075")
 
-counter = [0]*len(b_i)
+counter = [0]*P
 store = 0
 x = 0
 a_end = []
