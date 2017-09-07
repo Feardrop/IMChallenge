@@ -96,44 +96,71 @@ print(t_arrive[:,0], "t_arrive[:,0]")
 t_go = t_arrive[:,0] - T[:,0]
 print(t_go, "t_go")
 
+# Ausladezeiten als Matrix
 demands = Time[:]
 for i in range(0,len(Time)):
     for j in range(0, len(Time[i])):
         if demands[i][j] > 0:
             demands[i][j] = 1
-
-
 demands = demands * S_j
 # print(demands)
+
+# Erste Benutzung je Standort
 Time_min = array_Time[:,0]
 
+# Letzte Benutzung je Standort
 Time_max = []
 for i in range(0,len(array_Time[:,0])):
     x = next(x for x in reversed(array_Time[i]) if x != 0)
     Time_max.append(x)
 print(Time_min, "Time_min\n", Time_max, "Time_max")
 
+# Zeit von erster zu letzter Benutzung
 time_first_last = Time_max - Time_min
 print(time_first_last, "time_first_last")
 
+# Länge der Einsatzzeitfenster
 t_a_range = 0
+t_a_range_array = []
 for i in range(0,len(t_a_max)):
     t_a_range += t_a_min[i] - t_a_max[i]
+    t_a_range_array.append(t_a_min[i] - t_a_max[i])
 
 time_to_first_use = t_a_range - time_first_last
 print(time_to_first_use, "time_to_first_use if last product is used at 1075")
 
-counter = [0, 0, 0, 0]
+counter = [0]*len(b_i)
+store = 0
+x = 0
+a_end = []
+for k in range(0,len(counter)+1):
+    a_end.append(np.min(Time_min)+sum(t_a_range_array[:k]))
+print(a_end, "a_end")
+a_end[-1] = np.max(Time_max)
+# a_end = [420, 622, 824, 965, 1075]
 
-for i in range(0,len(array_Time[:,0])):
-    for j in range(0,len(array_Time[0])):
-        if array_Time[i,j] <= 622 and array_Time[i,j] > 0:
-            counter[0] += 1
-        elif array_Time[i,j] <= 824 and array_Time[i,j] > 0:
-            counter[1] += 1
-        elif array_Time[i,j] <= 965 and array_Time[i,j] > 0:
-            counter[2] += 1
-        elif array_Time[i,j] <= 1075 and array_Time[i,j] > 0:
-            counter[3] += 1
+array_Time_flat_sort = list(np.sort(array_Time, axis=None))
+timelist = array_Time_flat_sort[:]
 
-print(counter) # [93, 94, 80, 48]
+for k in range(0,len(counter)):
+    while len(timelist) > 0:
+        x += 1
+        if timelist[0] <= 0:
+            None
+        elif timelist[0] < a_end[k+1]:
+            if counter[k] == b_i[k]:
+                a_end[k+1] = store
+                break
+            store = timelist[0]
+            counter[k] += 1
+        elif timelist[0] == a_end[-1]:
+            counter[-1] += 1
+        else:
+            break
+        timelist.pop(0)
+
+print(counter, "counter")
+print(a_end, "a_end")
+
+# print(counter, "counter") # [93, 94, 80, 48]
+print(sum(counter))
