@@ -164,3 +164,11 @@ print(a_end, "a_end")
 
 # print(counter, "counter") # [93, 94, 80, 48]
 print(sum(counter))
+
+savings = np.zeros((len(T),len(T)))
+for i in range(0,len(T)-1):
+    for j in range(0,len(T[i])-1):
+        x = T[0,i] + T[0,j] - T[i,j]
+        savings[i,j] = x
+
+print(savings)
