@@ -2,6 +2,16 @@ import sys
 import xlrd
 import math as m
 import numpy as np
+from recordtype import recordtype
+from namedlist import namedlist
+
+def updateTour(c,d):
+    Tour.append(tour(   route    = '0-' + str(c) + '-' + Tour[k].route[2:],
+                        list     = [0] + [c] + Tour[k].list[1:],
+                        length   = L[0,c]+L[c,d]+L[0,d],
+                        duration = T[0,c]+T[c,d]+T[0,d] + S_j[c] + S_j[d]))
+    Tour.pop(k)
+    savings[c,d] = 0
 
 # Zulässige Strahlungswerte und Koeffizient bei 30 min
 a_max   =   15
@@ -165,10 +175,96 @@ print(a_end, "a_end")
 # print(counter, "counter") # [93, 94, 80, 48]
 print(sum(counter))
 
-savings = np.zeros((len(T),len(T)))
-for i in range(0,len(T)-1):
-    for j in range(0,len(T[i])-1):
-        x = T[0,i] + T[0,j] - T[i,j]
-        savings[i,j] = x
+print(T)
 
-print(savings)
+savings = np.zeros((len(T)-1,len(T)-1))
+for i in range(1,len(T)-1):
+    for j in range(1,len(T[i])-1):
+        if i >= j:
+            None#savings[i,j] = 0
+        else:
+            x = T[0,i] + T[0,j] - T[i,j]
+            savings[i,j] = x
+
+print(savings) # [1:-1,2:]
+
+# Tour = []
+# d = []
+# t = []
+# for i in range(0,len(J)-1):
+#     Tour.append([0,0,0])
+#     Tour[k][1] = i
+#     d.append(2 * L[0,i])
+#     t.append(2 * T[0,i] + S_j[i])
+#     print(i, Tour[k], d[i], t[i])
+# print(Tour)
+
+Tour = []
+# tour = recordtype("Tour", ['number', 'list', 'length', 'duration'])
+tour = namedlist("Tour", ['route', 'list', 'length', 'duration'])
+
+for i in range(0,len(J)):
+    Tour.append(tour('0-' + str(i) + '-0', [0,i,0], 2 * L[0,i], int(2 * T[0,i] + S_j[i])))
+    # Tour.list = [0,i,0]
+    # Tour.length = 2 * L[0,i]
+    # Tour.duration = 2 * T[0,i] + S_j[i]
+    # # d.append(2 * L[0,i])
+    # t.append(2 * T[0,i] + S_j[i])
+    # print(i, Tour[k], d[i], t[i])
+    print(Tour[i])
+
+Tour[1]._update(list=Tour[1].list[:-1] + [2] + [0])
+print(Tour[1])
+
+# a = np.array([[1,2,4], [4,3,1]])  # Can be of any shape
+# indices = np.where(a==a.max())
+# print(indices)
+# abc = [0,1,2,3,4]
+# abc.insert(1, 6)
+# print(abc)
+
+value = 1
+while value > 0:
+    #i,j = np.unravel_index(savings.argmax(), savings.shape)
+
+    indices = np.where(savings==savings.max())
+    # print(type(indices), len(indices), indices)
+    # print(len(indices[0]))
+    if len(indices[0]) > 1:
+        templist = []
+        for i in indices:
+            templist.append(L[i[0],i[1]])
+            # print(templist)
+        i,j = int(indices[templist.index(min(templist))][0]),int(indices[templist.index(min(templist))][1])
+    else:
+        i,j = int(indices[0]),int(indices[1])
+        # print(i,j)
+    value = savings[i,j]
+    print(value,'[', i, j,']', end=" ")
+    for k in range(0,len(Tour)-1):
+        print(Tour[k].route, end=' | ')
+        if j == Tour[k].list[1] and j != 0:
+            updateTour(i,j)
+            # Tour.append(   tour(route    = '0-' + str(i) + '-' + Tour[k].route[2:],
+            #                     list     = [0] + [i] + Tour[k].list[1:],
+            #                     length   = L[0,i]+L[i,j]+L[0,j],
+            #                     duration = int(T[0,i]+T[i,j]+T[0,j] + S_j[i] + S_j[j])))
+            # Tour.pop(k)
+            # savings[i,j] = 0
+            break
+        elif i == Tour[k].list[-2] and i != 0:
+            updateTour(j,i)
+            # Tour.append(   tour(route    = Tour[k].route[:-2] + '-' + str(j) + '-0',
+            #                     list     = Tour[k].list[:-1] + [j] + [0],
+            #                     length   = L[0,j]+L[j,i]+L[0,i],
+            #                     duration = int(T[0,j]+T[j,i]+T[0,i] + S_j[j] + S_j[i])))
+            # Tour.pop(k)
+            # savings[j,i] = 0
+            break
+        else:
+            savings[j,i] = 0
+            savings[i,j] = 0
+
+    print()
+for i in Tour:
+    print(i)
