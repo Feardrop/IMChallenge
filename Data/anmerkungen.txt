@@ -1,0 +1,26 @@
+
+ich hab das mit github noch nicht gemacht und hab jetzt auch grade keine zeit dafür,
+deshalb per Mail. Sorry...
+also: momentan machen wir ausschließlich eine kumulierte Mengenprüfung:
+wir prüfen ob die gesamtmenge im entsprechenden intervall jeweils passt oder nicht.
+dabei findet aber keine zuordnung zu einem bestimmten lieferort zu einer bestimmten lieferzeit statt.
+genau diese zuordnung einer einzelnen dose zu einem bestimmten ort an einer bestimmten zeit brauchen wir aber um die produktionsmengen nach
+einem durchgeführten savings verfahren überprüfen zu können.
+wir brauchen quasi eine entscheidungsvariable "produkt wird um xy uhr an ort xy eingesetzt"
+mein vorschlag/gedanke:
+die kumulierte mengenprüfung läuft momentan über diese liste die durch flat sort entstanden ist, darin sind
+alle zeiten unabhängig vom lieferort kreuz und quer enthalten
+wir brauchen stattdessen bzw. zusätzlich eine zweidimensionale matrix die die time-matrix als 0-1-werte abbildet.
+das vorgehen wäre wie folgt: suche das kleinste element in der time-matrix das ungleich null ist und setze es in einer 0-1-matrix auf 1.
+damit einher geht, dass die produktion auf linie 1 mit entsprechenden kosten angeworfen wird.
+damit einher geht außerdem, dass klar ist, dass dieses produkt mit dem entsprechenden auto (für diese route auf der der standort liegt) transportiert wird.
+damit fallen auch die entsprechenden kosten an. die strafkosten dafür betragen dann hingegen null für diese eine lieferzeit an standort xy
+so geht man dann iterativ vor bis alle werte der time-matrix die ungleich null sind abgearbeitet und einer produktionslinie und einem auto
+zugeordnet worden sind.
+das sollte dann die voraussetzung dafür bieten, über iteratives vorgehen später entsprechende änderungen an der distribution auch erfassen zu können,
+d.h. zb savings algorithmus oder ähnlich zu implementieren.
+also auf jeden fall muss diese entscheidungsvariable her...;)
+tom meinte außerdem wir könnten analog zu critical path methode nach den puffern suchen die jedes auto hat bevor es starten muss.
+damit könnte man dann auch die zulässigkeit einer beim savings alg. entstandenen tour prüfen (wenn man den produktionsplan nicht verändern will...)
+ich hoffe es ist klar geworden was ich meinte...
+gute nacht ;)
