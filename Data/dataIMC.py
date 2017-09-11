@@ -2,8 +2,10 @@ import sys
 import xlrd
 import math as m
 import numpy as np
+import numpy.ma as ma
 from recordtype import recordtype
 from namedlist import namedlist
+from pyschedule import Scenario, solvers, plotters
 
 def updateTour(c,d):
     Tour.append(tour(   route    = '0-' + str(c) + '-' + Tour[k].route[2:],
@@ -169,6 +171,7 @@ for k in range(0,len(counter)):
             break
         timelist.pop(0)
 
+
 print(counter, "counter")
 print(a_end, "a_end")
 
@@ -268,3 +271,37 @@ while value > 0:
     print()
 for i in Tour:
     print(i)
+
+
+# Produktionslinien Assignment
+S = Scenario('Produktionsplanung', horizon=None)
+# Erstelle Lininen
+lineA, lineB, lineC, lineD = S.Resource('lineA'), S.Resource('lineB'), S.Resource('lineC'), S.Resource('lineD')
+
+
+job = namedlist("Job", ['indx', 'line', 'duration', 'end'])
+
+production = [[False]]*P
+production[0] = True
+print(production)
+
+# def prod(use):
+#     if use == True:
+#         Jobindex += 1
+#         for i in range(0,P):
+#             if job(Jobindex, i, )
+
+
+'''
+suche das kleinste element in der time-matrix das ungleich null ist und setze es in einer 0-1-matrix (used) auf 1.
+'''
+
+used = np.full_like(array_Time, False) # array_usedinary
+Time_sd = ma.masked_values(array_Time[:], 0) # array_Time_search_and_delete_min
+while not np.array_equal(Time_sd, np.zeros_like(array_Time)):
+    j,t = np.unravel_index(Time_sd.argmin(), Time_sd.shape)
+    used[j,t],Time_sd[j,t] = True,0
+    Time_sd = ma.masked_values(Time_sd, 0)
+    # print(used, Time_sd)
+    prod(used[j,t])
+print(used)
