@@ -3,46 +3,57 @@ import xlrd
 import math as m
 import numpy as np
 import numpy.ma as ma
-from recordtype import recordtype
 from namedlist import namedlist
 from pyschedule import Scenario, solvers, plotters
 
-def updateTour(c,d):
-    Tour.append(tour(   route    = '0-' + str(c) + '-' + Tour[k].route[2:],
-                        list     = [0] + [c] + Tour[k].list[1:],
-                        length   = L[0,c]+L[c,d]+L[0,d],
-                        duration = T[0,c]+T[c,d]+T[0,d] + S_j[c] + S_j[d]))
-    Tour.pop(k)
-    savings[c,d] = 0
+# def updateTour(c,d):
+#     Tour.append(tour(   route    = '0-' + str(c) + '-' + Tour[k].route[2:],
+#                         list     = [0] + [c] + Tour[k].list[1:],
+#                         length   = L[0,c]+L[c,d]+L[0,d],
+#                         duration = T[0,c]+T[c,d]+T[0,d] + S_j[c] + S_j[d]))
+#     Tour.pop(k)
+#     savings[c,d] = 0
+
+'''
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Alle gegebenen Werte
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+'''
 
 # Zulässige Strahlungswerte und Koeffizient bei 30 min
 a_max   =   15
 a_min   =   5
 c       =   0.85
 intervall = 30
+
 # Instanzen
 P       =   4 # Produktionslinien
 V       =   6 # Autos
-V_dict  =   {}# {1:"Auto1",2:"Auto2",3:"Auto3",4:"Auto4",5:"Auto5",6:"Auto6"}
+V_dict  =   {}# {1:"Auto 1",2:"Auto 2",3:"Auto 3",4:"Auto 4",5:"Auto 5",6:"Auto 6"}
 for i in range(1,V+1):
     V_dict[i] = "Auto "+str(i)
-# print(V_dict)
+
 # Produktionskosten
 c_PF    =   3000    # Fix pro genutzte Produktionslinie
 cp	    =   1200    # Stundensatz pro Produktionslinie
+
 # Distributionskosten
 M_F     =   1000    # Fix pro genutztem Fahrzeug
 m_v     =   5       # Entfernungskostensatz pro Fahrzeug
 m_t     =   10      # Stundensatz pro Fahrzeug
+
 # Produktionslinien
 p_i	    =   np.array(( 15,  30,  60, 120))  # Dauer
 b_i	    =   np.array((150, 100,  80,  60))  # Stückzahl
 a_i	    =   np.array(( 60, 120, 250, 500))  # Strahlungsaktivität
+
 # Städte
 J	    =   {0:"Leipzig",1:"Halle",2:"Dessau",3:"Magdeburg",
              4:"Chemnitz",5:"Dresden",6:"Jena",7:"Erfurt"}
 J = list(J.values())
 # print(J)
+
 # Spezifische Entladezeiten
 S_j	    =   np.array((15, 30, 30, 15, 30, 15, 30, 15))
 S_j     =   S_j[:, np.newaxis]
@@ -58,6 +69,7 @@ L   =   [[  0,  27,  43,  80,  53,  75,  61,  91],
          [ 61,  70,  86, 123,  67, 107,   0,  34],
          [ 91,  73,  86, 106,  93, 134,  34,   0]]
 L = np.array(L)
+
 # Fahrzeitmatrix
 T   =   [[  0,  27,  57,  88,  65,  85,  73,  93],
          [ 27,   0,  43,  60,  90,  95,  70,  82],
@@ -68,6 +80,7 @@ T   =   [[  0,  27,  57,  88,  65,  85,  73,  93],
          [ 73,  70,  87, 121,  74, 105,   0,  45],
          [ 93,  82, 115, 124,  98, 133,  45,   0]]
 T = np.array(T)
+
 # Zeitplan
 Time    =   [[480, 490, 510, 520, 540, 550, 560, 570, 600, 620, 660, 680, 720, 740, 780, 800, 840, 870, 900, 930, 970, 990,   0,   0,   0,   0,   0,   0,   0,   0,
                 0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0],
@@ -85,9 +98,14 @@ Time    =   [[480, 490, 510, 520, 540, 550, 560, 570, 600, 620, 660, 680, 720, 7
               880,  885,  895,  905,  910,  920,  930,  945,  950,  975,  995, 1000, 1005, 1025, 1035, 1055, 1070,    0],
              [440, 445, 450, 490, 495, 510, 600, 620, 625, 630, 640, 645, 650, 660, 675, 680, 690, 705, 720, 730, 735, 795, 810, 825, 845, 850, 860, 890, 895, 905,
               925,  950,  985,  990, 1010, 1020, 1040, 1050, 1055, 1065,    0,    0,    0,    0,    0,    0,    0,    0]]
-
 array_Time = np.array(Time)
 # print(array_Time)
+
+'''
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Preprocessing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+'''
 
 # Einsatzzeitfenster
 t_a_max = [] # [256 384 520 648]
@@ -141,6 +159,15 @@ for i in range(0,len(t_a_max)):
 time_to_first_use = t_a_range - time_first_last
 print(time_to_first_use, "time_to_first_use if last product is used at 1075")
 
+
+'''
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Mengenprüfung ohne beachtung der Produktion.
+    Es sind ausreichend Linien vorhanden und von
+    jeder Art wird ein Batch produziert.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+'''
 counter = [0]*P
 store = 0
 x = 0
@@ -172,136 +199,145 @@ for k in range(0,len(counter)):
         timelist.pop(0)
 
 
-print(counter, "counter")
-print(a_end, "a_end")
+print("counter", counter) # [93, 94, 80, 48]
+print("a_end  ", a_end)
+print("summe: ", sum(counter))
 
-# print(counter, "counter") # [93, 94, 80, 48]
-print(sum(counter))
 
+
+'''
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    SAVINGS - ALGORITHMUS
+    - berechne Savings
+    - erstelle Pendeltouren
+    - wähle höchste Einsparung und update Tourliste
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+'''
+# Gib Fahrzeitmatrix aus:
 print(T)
-
+# Berechne Savings
 savings = np.zeros((len(T)-1,len(T)-1))
 for i in range(1,len(T)-1):
     for j in range(1,len(T[i])-1):
         if i >= j:
-            None#savings[i,j] = 0
+            None
         else:
             x = T[0,i] + T[0,j] - T[i,j]
             savings[i,j] = x
+print(savings[1:-1,2:])
 
-print(savings) # [1:-1,2:]
-
-# Tour = []
-# d = []
-# t = []
-# for i in range(0,len(J)-1):
-#     Tour.append([0,0,0])
-#     Tour[k][1] = i
-#     d.append(2 * L[0,i])
-#     t.append(2 * T[0,i] + S_j[i])
-#     print(i, Tour[k], d[i], t[i])
-# print(Tour)
-
+# Tourliste
 Tour = []
-# tour = recordtype("Tour", ['number', 'list', 'length', 'duration'])
 tour = namedlist("Tour", ['route', 'list', 'length', 'duration'])
 
+# Pendeltouren
 for i in range(0,len(J)):
-    Tour.append(tour('0-' + str(i) + '-0', [0,i,0], 2 * L[0,i], int(2 * T[0,i] + S_j[i])))
-    # Tour.list = [0,i,0]
-    # Tour.length = 2 * L[0,i]
-    # Tour.duration = 2 * T[0,i] + S_j[i]
-    # # d.append(2 * L[0,i])
-    # t.append(2 * T[0,i] + S_j[i])
-    # print(i, Tour[k], d[i], t[i])
+    Tour.append(tour(route='0-' + str(i) + '-0',
+                     list=[0,i,0],
+                     length=2 * L[0,i],
+                     duration=int(2 * T[0,i] + S_j[i])))
     print(Tour[i])
 
-Tour[1]._update(list=Tour[1].list[:-1] + [2] + [0])
-print(Tour[1])
-
-# a = np.array([[1,2,4], [4,3,1]])  # Can be of any shape
-# indices = np.where(a==a.max())
-# print(indices)
-# abc = [0,1,2,3,4]
-# abc.insert(1, 6)
-# print(abc)
-
+# Tourupdate
 value = 1
 while value > 0:
-    #i,j = np.unravel_index(savings.argmax(), savings.shape)
-
+# Wähle höchste Werte
     indices = np.where(savings==savings.max())
-    # print(type(indices), len(indices), indices)
-    # print(len(indices[0]))
+# Wenn gleiche Werte, dann wähle den mit der geringsten Entfernung zueinander.
     if len(indices[0]) > 1:
         templist = []
         for i in indices:
             templist.append(L[i[0],i[1]])
-            # print(templist)
+                                                    # print(templist)
         i,j = int(indices[templist.index(min(templist))][0]),int(indices[templist.index(min(templist))][1])
     else:
         i,j = int(indices[0]),int(indices[1])
         # print(i,j)
+# Update value-Wert für while Schleife
     value = savings[i,j]
     print(value,'[', i, j,']', end=" ")
+# hänge neuen Knoten an Anfang oder an Ende
     for k in range(0,len(Tour)-1):
         print(Tour[k].route, end=' | ')
+# wenn an Anfang passt, dann erstelle neue Route und entferne alte. Lösche den Gegenwert
         if j == Tour[k].list[1] and j != 0:
-            updateTour(i,j)
-            # Tour.append(   tour(route    = '0-' + str(i) + '-' + Tour[k].route[2:],
-            #                     list     = [0] + [i] + Tour[k].list[1:],
-            #                     length   = L[0,i]+L[i,j]+L[0,j],
-            #                     duration = int(T[0,i]+T[i,j]+T[0,j] + S_j[i] + S_j[j])))
-            # Tour.pop(k)
-            # savings[i,j] = 0
+            Tour.append(   tour(route    = '0-' + str(i) + '-' + Tour[k].route[2:],
+                                list     = [0] + [i] + Tour[k].list[1:],
+                                length   = L[0,i]+L[i,j]+L[0,j],
+                                duration = int(T[0,i]+T[i,j]+T[0,j] + S_j[i] + S_j[j])))
+            Tour.pop(k)
+            savings[i,j] = 0
             break
+# wenn ans Ende passt, dann erstelle neue Route und entferne alte. Lösche den Gegenwert
         elif i == Tour[k].list[-2] and i != 0:
-            updateTour(j,i)
-            # Tour.append(   tour(route    = Tour[k].route[:-2] + '-' + str(j) + '-0',
-            #                     list     = Tour[k].list[:-1] + [j] + [0],
-            #                     length   = L[0,j]+L[j,i]+L[0,i],
-            #                     duration = int(T[0,j]+T[j,i]+T[0,i] + S_j[j] + S_j[i])))
-            # Tour.pop(k)
-            # savings[j,i] = 0
+            Tour.append(   tour(route    = Tour[k].route[:-2] + '-' + str(j) + '-0',
+                                list     = Tour[k].list[:-1] + [j] + [0],
+                                length   = L[0,j]+L[j,i]+L[0,i],
+                                duration = int(T[0,j]+T[j,i]+T[0,i] + S_j[j] + S_j[i])))
+            Tour.pop(k)
+            savings[j,i] = 0
             break
         else:
             savings[j,i] = 0
             savings[i,j] = 0
-
     print()
+# Print all Tours.
 for i in Tour:
     print(i)
 
+                                            # job = namedlist("Job", ['indx', 'type', 'line', 'duration', 'end'])
+                                            # production = [[False]]*P
+                                            # production[0] = True
+                                            # print(production)
+
+                                            # d(use):
+                                            #     if use == True:
+                                            #         Jobindex += 1
+                                            #         for i in range(0,P):
+                                            #             if job
+
+# Dictionaries für die Jobs
+tasks = {}
+arts = {}
+lines = {}
+durations = {}
+ends = {}
+
+                                            # def pro(Jobindex, i, )
 
 # Produktionslinien Assignment
-S = Scenario('Produktionsplanung', horizon=None)
+S = Scenario('Produktionsplanung', horizon=1440)
 # Erstelle Lininen
 lineA, lineB, lineC, lineD = S.Resource('lineA'), S.Resource('lineB'), S.Resource('lineC'), S.Resource('lineD')
 
-
-job = namedlist("Job", ['indx', 'line', 'duration', 'end'])
-
-production = [[False]]*P
-production[0] = True
-print(production)
-
-# def prod(use):
-#     if use == True:
-#         Jobindex += 1
-#         for i in range(0,P):
-#             if job(Jobindex, i, )
-
-
-'''
-suche das kleinste element in der time-matrix das ungleich null ist und setze es in einer 0-1-matrix (used) auf 1.
-'''
-
-used = np.full_like(array_Time, False) # array_usedinary
+# Suche das kleinste element in der time-matrix das ungleich null ist und setze es in einer 0-1-matrix (used) auf 1.
+# aka. alle Zeiten werden bedient
+used = np.full_like(array_Time, False) # array_used_binary
 Time_sd = ma.masked_values(array_Time[:], 0) # array_Time_search_and_delete_min
 while not np.array_equal(Time_sd, np.zeros_like(array_Time)):
     j,t = np.unravel_index(Time_sd.argmin(), Time_sd.shape)
     used[j,t],Time_sd[j,t] = True,0
     Time_sd = ma.masked_values(Time_sd, 0)
     # print(used, Time_sd)
-    prod(used[j,t])
+    # createNewTask(j,t)
+    usetime = array_Time[j,t]
+    # print(usetime)
+
 print(used)
+
+
+'''
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Erstellung neuer Tasks und Prüfung auf Auswirkungen auf Transport
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+'''
+
+k = 1
+i = 0
+usetime = 420
+tasks[k] = S.Task('Task'+str(k),int(p_i[i]))
+S += tasks[k] < int(usetime - t_a_max[i])
+S += int(usetime - t_a_min[i]) < tasks[k]
+S += tasks[k] < int(usetime - 30 - int(S_j[j]))
+# wenn kosten geringer, dann behalte, sonst i += 1 und nochmal
+# if usetime in range()
