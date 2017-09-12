@@ -1,6 +1,7 @@
 import sys
 import xlrd
 import math as m
+import random
 import numpy as np
 import numpy.ma as ma
 from namedlist import namedlist
@@ -15,55 +16,6 @@ import matplotlib.pyplot as plt
 #                         duration = T[0,c]+T[c,d]+T[0,d] + S_j[c] + S_j[d]))
 #     Tour.pop(k)
 #     savings[c,d] = 0
-
-
-# def use_makespan_objective(self, ori=False) :
-#     """
-#     Set the objective to the makespan of all included tasks
-#     """
-#     self.clear_objective()
-#     if not self.tasks():
-#         return
-#     if 'MakeSpan' in self._tasks :
-#         self._constraints = [ C for C in self._constraints if self._tasks['MakeSpan'] not in C.tasks() ]
-#         del self._tasks['MakeSpan']
-#     tasks = self.tasks() # save tasks before adding makespan
-#     makespan = self.Task('MakeSpan')
-#     makespan += self.resources()[0] # add first resource, every task needs one
-#     if ori:
-#         for T in tasks :
-#             self += T > makespan
-#     else:
-#         for T in tasks :
-#             self += T > makespan
-#     self += makespan*1
-
-
-# def use_makespan_objective(self, ori=False):
-# 	# """
-# 	# Set the objective to the makespan of all included tasks
-# 	# """
-# 	self.clear_objective()
-# 	if not self.tasks():
-# 		return
-# 	if 'MakeSpan' in self._tasks :
-# 		self._constraints = [ C for C in self._constraints if self._tasks['MakeSpan'] not in C.tasks() ]
-# 		del self._tasks['MakeSpan']
-# 	tasks = self.tasks() # save tasks before adding makespan
-# 	makespan = self.Task('MakeSpan')
-# 	makespan += self.resources()[0] # add first resource, every task needs one
-#     for T in tasks:
-#         self += T > makespan
-#
-#     # if ori:
-#     #     for T in tasks:
-#     #         self += T > makespan
-#     # else:
-#     #     for T in tasks:
-#     #         self += T > makespan
-#     #     #     for T in tasks:
-#     #     #         self += T < makespan
-# 	self += makespan*1
 
 '''
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -297,7 +249,7 @@ print("\n","%"*80,"\n")
 
 # Tourupdate
 value = 1
-new_list = []
+new_list = [] # neue liste für eine neue Tour
 while value > 0:
 # Wähle höchste Werte
     indices = np.where(savings==savings.max())
@@ -313,7 +265,7 @@ while value > 0:
         # print(i,j)
 # Update value-Wert für while Schleife
     value = savings[i,j]
-    print("\n",value,'[', i, j,']', end=" ")
+    print("\n","Savings-Wert = ",value,'auf Strecke: [', i, j,']')
 
     '''
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -323,15 +275,15 @@ while value > 0:
         - wähle höchste Einsparung und update Tourliste
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     '''
-    knot_list = []
+    knot_list = [] # liste der
 
     if i in new_list and j in new_list:
-        print("! schon vorhanden \n")
+        print(" ! Strecke schon verbaut.\n")
     else:
         print()
         new_list = []
-        for k in Tour:
-            print(k.list)
+        for k in Tour:                          # anhängen oder voranstellen einer
+            print(k.list)                       # liste je nach Knoten
             if i == k.list[-2]:
                 knot_list.append(k)
             elif i == k.list[1]:
@@ -342,34 +294,29 @@ while value > 0:
                 knot_list.append(k)
             elif j == k.list[1]:
                 knot_list.insert(0, k)
-                # break
-        # print(knot_list)
-        new_length  = L[i,j] - (L[0,i]+L[0,j])
-        new_duration = -savings[i,j]
+        new_length  = L[i,j] - (L[0,i]+L[0,j])  # neue Länge für eine neue Tour
+        new_duration = -savings[i,j]            # neue Dauer für eine neue Tour
 
-        for l in knot_list:
+        for l in knot_list:                     # update der neuen Tour
             new_length += l.length
             new_duration += l.duration
             new_list.extend(l.list)
-        new_list = list(filter(lambda x: x!= 0, new_list[1:-1]))
-        if len(new_list) > 1:
+        new_list = list(filter(lambda x: x!= 0, new_list[1:-1]))    # nullen dazwischen raus
+        if len(new_list) > 1:                   # nur sinnvolle Listen behalten
             new_list.append(0)
             new_list.insert(0, 0)
         else:
             break
-        print(new_list)
-        print()
-        new_route = "-".join(map(str, new_list[:]))
-        for l in knot_list:
+        print(new_list, end='\n\n')
+        new_route = "-".join(map(str, new_list[:])) # neue Route für eine neue Tour
+        for l in knot_list:                     # verbundene Altrouten löschen
             for k in Tour:
-                # print(k.list, l.list)
                 if set(k.list) == set(l.list):
                     Tour.remove(k)
         Tour.append(tour(new_route, new_list, new_length, new_duration))
-        print(Tour[-1])
-    savings[i,j] = 0
-    # for x in Tour:
-    #     print(x.list)
+        print(Tour[-1])                         # Neu geformte Tour ausgeben
+    savings[i,j] = 0                            # Verwendetes Paar aus-nullen
+
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -494,13 +441,14 @@ jobs[task_indx] += lineA|lineB|lineC|lineD
 
 S.use_makespan_objective(reversed_orientation=True)
 
-task_colors = { jobs[task_indx]   : '#A1D372',
-                S['MakeSpan'] : '#7EA7D8'
-                }
+task_colors = {S['MakeSpan']    : '#7EA7D8'}
+task_colors[jobs[task_indx]] = "#%06x" % random.randint(0, 0xFFFFFF)
 
+print()
+print(S)
 # A small helper method to solve and plot a scenario
 def run(S) :
-    if solvers.cpoptimizer.solve(S):
+    if solvers.cpoptimizer.solve(S,msg=1):
         # %matplotlib inline
         plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
     else:
@@ -509,7 +457,7 @@ run(S)
 
 
 
-print(S)
+
 # solvers.mip.solve(S,kind='glob')
 # print(S.solution())
 # matplotlib inline
