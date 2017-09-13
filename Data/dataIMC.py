@@ -8,7 +8,7 @@ from namedlist import namedlist
 from pyschedule import Scenario, solvers, plotters
 import matplotlib
 import matplotlib.pyplot as plt
-
+import copy
 # def updateTour(c,d):
 #     Tour.append(tour(   route    = '0-' + str(c) + '-' + k.route[2:],
 #                         list     = [0] + [c] + k.list[1:],
@@ -16,6 +16,58 @@ import matplotlib.pyplot as plt
 #                         duration = T[0,c]+T[c,d]+T[0,d] + S_j[c] + S_j[d]))
 #     Tour.pop(k)
 #     savings[c,d] = 0
+
+def addNewLine(n):
+    lines = {}
+    lines = { j : S.Resource('line_%i'%j) for j in range(n) }
+def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
+    used_tour = []
+    for tour_number in Tour:
+        if _loc in tour_number.list:
+            used_tour = tour_number.list
+    print(
+    "\n usetime: Minute",_usetime,
+    "in Location:",_loc, "(" + str(J[_loc]) + ")",
+    "\n befahren in Route",used_tour,
+    "\n Genutzte Art:",_art,"| Dauer:",int(p_i[_art]),"Minuten"
+    "\n Strahlungsrestriktion: Produktionsende zwischen Minute", int(_usetime - t_a_min[_art]),"und",int(_usetime - t_a_max[_art]),
+    "\n Spätestens Losfahren in Minute:",int(_usetime - 30 - int(S_j[j]))
+     )
+    low_bound = max(-1440,int(_usetime - t_a_min[_art]) - int(p_i[_art]))
+    up_bound = min(int(_usetime - t_a_max[_art]),int(_usetime - 30 - int(S_j[j])))
+
+    jobs[_task_indx] = scen.Task('Task_%d' % _task_indx,int(p_i[_art]))
+    scen += jobs[_task_indx] < up_bound
+    scen += jobs[_task_indx] > low_bound
+    # resources = ("|".join(map(str, lines)))
+    # jobs[_task_indx] += resources
+    if len(lines) == 1:
+        jobs[_task_indx] += lines[0]
+    elif len(lines) == 2:
+        jobs[_task_indx] += lines[0]|lines[1]
+    elif len(lines) == 3:
+        jobs[_task_indx] += lines[0]|lines[1]|lines[2]
+    elif len(lines) == 4:
+        jobs[_task_indx] += lines[0]|lines[1]|lines[2]|lines[3]
+
+    task_colors[jobs[_task_indx]] = "#%06x" % random.randint(0, 0xFFFFFF)
+    scen.use_makespan_objective(reversed_orientation=True)
+
+# def addNewLine()
+#     i = 0
+#     try:
+#         jobs[i] +=
+
+def run(S) : # A small helper method to solve and plot a scenario
+    # if solvers.cpoptimizer.solve(S,msg=1):
+    #     # %matplotlib inline
+    #     plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
+    # el
+    if solvers.mip.solve(S,msg=1):
+        plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
+    else:
+        print('no solution exists')
+        used_P += 1
 
 '''
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -110,7 +162,7 @@ array_Time = np.array(Time)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 '''
 
-print("\n","%"*80,"\n","    ","Preprocessing","\n","%"*80,"\n")
+print("\n","#"*40,"\n","    ","Preprocessing","\n","#"*40,"\n")
 
 # Einsatzzeitfenster
 t_a_max = [] # [256 384 520 648]
@@ -204,7 +256,7 @@ for k in range(0,len(counter)):
         timelist.pop(0)
 
 
-print("counter", counter, "\na_end  ", a_end, "\nsumme: ", sum(counter)) # [93, 94, 80, 48]
+print("counter", counter, "\na_end  ", a_end, "\nsumme: ", sum(counter)) # [93, 94, 40, 48]
 
 
 
@@ -219,7 +271,7 @@ print("counter", counter, "\na_end  ", a_end, "\nsumme: ", sum(counter)) # [93, 
 # Gib Fahrzeitmatrix aus:
 # print(T)
 # Berechne Savings
-print("\n","%"*80,"\n","    ","Savings","\n","%"*80,"\n")
+print("\n","#"*40,"\n","    ","Savings","\n","#"*40,"\n")
 
 savings = np.zeros((len(T),len(T)))
 for i in range(1,len(T)):
@@ -231,21 +283,29 @@ for i in range(1,len(T)):
             savings[i,j] = x
 print(savings[1:-1,2:])#
 
-print("\n","%"*80,"\n","    ","Pendeltouren","\n","%"*80,"\n")
+print("\n","#"*40,"\n","    ","Pendeltouren","\n","#"*40,"\n")
 
 # Tourliste
 Tour = []
+moegliche_Touren = []
 tour = namedlist("Tour", ['route', 'list', 'length', 'duration'])
 
 # Pendeltouren
 for i in range(0,len(J)):
     Tour.append(tour(route='0-' + str(i) + '-0',
                      list=[0,i,0],
-                     length=2 * L[0,i],
-                     duration=int(2 * T[0,i] + S_j[i])))
+                     length=[0, L[0,i], 2 * L[0,i]],
+                     duration=[0, T[0,i] + int(S_j[i]), 2 * T[0,i] + int(S_j[i])]))
+    moegliche_Touren.append(tour(route='alt: 0-' + str(i) + '-0',
+                     list=[0,i,0],
+                     length=[0, L[0,i], 2 * L[0,i]],
+                     duration=[0, T[0,i] + int(S_j[i]), 2 * T[0,i] + int(S_j[i])]))                   # int(2 * T[0,i] + S_j[i])))
     print(Tour[i])
 
-print("\n","%"*80,"\n")
+
+
+
+print("\n","#"*40,"\n")
 
 # Tourupdate
 value = 1
@@ -275,15 +335,27 @@ while value > 0:
         - wähle höchste Einsparung und update Tourliste
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     '''
-    knot_list = [] # liste der
-
-    if i in new_list and j in new_list:
-        print(" ! Strecke schon verbaut.\n")
+    knot_list = [] # liste der Knoten
+    # print("N:", new_list)
+    if i in new_list and j in new_list or i in new_list[2:-3] or j in new_list[2:-3]:
+        print(" :/ -- Strecke schon verbaut. Wird aber zu moegliche_Touren hinzugefügt.\n")
+        alt_list = [0,i,j,0]
+        # print(alt_list, end='\n\n')
+        alt_route = "alt: "+"-".join(map(str, alt_list[:])) # neue Route für eine neue Tour
+        # neue Länge für eine neue Tour
+        alt_length = [0]
+        alt_duration = [0]
+        for knot in range(0,len(alt_list)-1):
+            alt_length.append(alt_length[-1] + L[alt_list[knot],alt_list[knot+1]])
+            alt_duration.append(int(alt_duration[-1] + T[alt_list[knot],alt_list[knot+1]] + S_j[alt_list[knot+1]]))
+        temp_tour = tour(alt_route, alt_list, alt_length, alt_duration)
+        # print(temp_tour)                         # Neu geformte Tour ausgeben
+        if len(temp_tour.list) >=4:
+            moegliche_Touren.append(temp_tour)
     else:
-        print()
         new_list = []
         for k in Tour:                          # anhängen oder voranstellen einer
-            print(k.list)                       # liste je nach Knoten
+            # print(k)                       # liste je nach Knoten
             if i == k.list[-2]:
                 knot_list.append(k)
             elif i == k.list[1]:
@@ -293,13 +365,10 @@ while value > 0:
                 k.list = k.list[::-1]
                 knot_list.append(k)
             elif j == k.list[1]:
-                knot_list.insert(0, k)
-        new_length  = L[i,j] - (L[0,i]+L[0,j])  # neue Länge für eine neue Tour
-        new_duration = -savings[i,j]            # neue Dauer für eine neue Tour
-
+                knot_list.append(k)#insert(0, k)
         for l in knot_list:                     # update der neuen Tour
-            new_length += l.length
-            new_duration += l.duration
+            # new_length += l.length
+            # new_duration += l.duration
             new_list.extend(l.list)
         new_list = list(filter(lambda x: x!= 0, new_list[1:-1]))    # nullen dazwischen raus
         if len(new_list) > 1:                   # nur sinnvolle Listen behalten
@@ -307,14 +376,29 @@ while value > 0:
             new_list.insert(0, 0)
         else:
             break
-        print(new_list, end='\n\n')
+        # print(new_list, end='\n\n')
         new_route = "-".join(map(str, new_list[:])) # neue Route für eine neue Tour
+        # neue Länge für eine neue Tour
+        new_length = [0]
+        new_duration = [0]
+        for knot in range(0,len(new_list)-1):
+            new_length.append(new_length[-1] + L[new_list[knot],new_list[knot+1]])
+            new_duration.append(int(new_duration[-1] + T[new_list[knot],new_list[knot+1]] + S_j[new_list[knot+1]]))
+
+
         for l in knot_list:                     # verbundene Altrouten löschen
             for k in Tour:
                 if set(k.list) == set(l.list):
                     Tour.remove(k)
-        Tour.append(tour(new_route, new_list, new_length, new_duration))
-        print(Tour[-1])                         # Neu geformte Tour ausgeben
+        temp_tour = tour(new_route, new_list, new_length, new_duration)
+        # print(temp_tour)                         # Neu geformte Tour ausgeben
+        if len(temp_tour.list) >=4:
+            Tour.append(temp_tour)
+            print(" YES! -- Neue Tour ",new_route," gefunden!")
+    # print("\n","--"*20)
+    # for h in Tour:
+    #     print("    ",h)
+    print("\n","#"*40)
     savings[i,j] = 0                            # Verwendetes Paar aus-nullen
 
 
@@ -379,9 +463,14 @@ while value > 0:
 #     for n in Tour:
 #         print(n)
 # # Print all Tours.
-print()
+print("\n     Savings-Touren:")
 for i in Tour:
-    print(i)
+    print("\n     ",i)
+print("\n","#"*40,"\n")
+print("     Mögliche Touren:")
+for i in moegliche_Touren:
+    print("\n     ",i)
+
 
                                             # job = namedlist("Job", ['indx', 'type', 'line', 'duration', 'end'])
                                             # production = [[False]]*P
@@ -400,16 +489,28 @@ arts = {}
 lines = {}
 durations = {}
 ends = {}
+task_colors = {}
+task_indx = 0
+art = 0
+used_P = 1
 
                                             # def pro(Jobindex, i, )
 
 # Produktionslinien Assignment
 S = Scenario('Produktionsplanung', horizon=1440)
 # Erstelle Lininen
-lineA, lineB, lineC, lineD = S.Resource('lineA'), S.Resource('lineB'), S.Resource('lineC'), S.Resource('lineD')
+# addNewLine(used_P)
+lines = { j : S.Resource('line_%i'%j) for j in range(used_P) }
+# lineA, lineB, lineC, lineD = S.Resource('lineA'), S.Resource('lineB'), S.Resource('lineC'), S.Resource('lineD')
 
-# Suche das kleinste element in der time-matrix das ungleich null ist und setze es in einer 0-1-matrix (used) auf 1.
-# aka. alle Zeiten werden bedient
+'''
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Suche das kleinste element in der time-matrix das ungleich null ist und
+    setze es in einer 0-1-matrix (used) auf 1.
+    aka. alle Zeiten werden bedient
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+'''
+
 used = np.full_like(array_Time, False) # array_used_binary
 Time_sd = ma.masked_values(array_Time[:], 0) # array_Time_search_and_delete_min
 while not np.array_equal(Time_sd, np.zeros_like(array_Time)):
@@ -418,50 +519,43 @@ while not np.array_equal(Time_sd, np.zeros_like(array_Time)):
     Time_sd = ma.masked_values(Time_sd, 0)
     # print(used, Time_sd)
     # createNewTask(j,t)
-    usetime = array_Time[j,t]
+    usetime = int(array_Time[j,t])
     # print(usetime)
+    '''
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    prod_end = up_bound
 
+    if usetime in range()
+
+    addTaskFunc(_task_indx = task_indx, _art = art, _usetime = usetime, _loc = j, scen=S)
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    '''
 # print(used)
 
 
-'''
+print('''
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     Erstellung neuer Tasks und Prüfung auf Auswirkungen auf Transport
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-'''
+''')
 
-task_indx = 1
-i = 0
-usetime = 420
-loc = 2
-used_tour = []
-for tour_number in Tour:
-    if loc in tour_number.list:
-        used_tour = tour_number.list
 
-print(used_tour)
 
-jobs[task_indx] = S.Task('Task_%d' % task_indx,int(p_i[i]))
-S += jobs[task_indx] < int(usetime - t_a_max[i])
-S += jobs[task_indx] > int(usetime - t_a_min[i])
-S += jobs[task_indx] < int(usetime - 30 - int(S_j[j]))
-jobs[task_indx] += lineA|lineB|lineC|lineD
 
-# S.use_makespan_objective(reversed_orientation=True)
 
-task_colors = {#S['MakeSpan']    : '#7EA7D8'
-}
-task_colors[jobs[task_indx]] = "#%06x" % random.randint(0, 0xFFFFFF)
+# addTaskFunc(scen=S, _task_indx = 1, _art = 0, _usetime = 420, _loc = 2)
+# addTaskFunc(S, 2, 2, 800, 5)
+addTaskFunc(S,1,0,420,2)
+addTaskFunc(S,2,1,622,4)
+addTaskFunc(S,3,2,824,5)
+addTaskFunc(S,4,1,965,7)
+
+
+
 
 print()
-print(S)
-# A small helper method to solve and plot a scenario
-def run(S) :
-    if solvers.mip.solve(S,msg=1):
-        # %matplotlib inline
-        plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
-    else:
-        print('no solution exists')
+
+
 run(S)
 
 print(S)
