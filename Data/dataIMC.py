@@ -433,29 +433,38 @@ while not np.array_equal(Time_sd, np.zeros_like(array_Time)):
 task_indx = 1
 i = 0
 usetime = 420
+loc = 2
+used_tour = []
+for tour_number in Tour:
+    if loc in tour_number.list:
+        used_tour = tour_number.list
+
+print(used_tour)
+
 jobs[task_indx] = S.Task('Task_%d' % task_indx,int(p_i[i]))
 S += jobs[task_indx] < int(usetime - t_a_max[i])
 S += jobs[task_indx] > int(usetime - t_a_min[i])
 S += jobs[task_indx] < int(usetime - 30 - int(S_j[j]))
 jobs[task_indx] += lineA|lineB|lineC|lineD
 
-S.use_makespan_objective(reversed_orientation=True)
+# S.use_makespan_objective(reversed_orientation=True)
 
-task_colors = {S['MakeSpan']    : '#7EA7D8'}
+task_colors = {#S['MakeSpan']    : '#7EA7D8'
+}
 task_colors[jobs[task_indx]] = "#%06x" % random.randint(0, 0xFFFFFF)
 
 print()
 print(S)
 # A small helper method to solve and plot a scenario
 def run(S) :
-    if solvers.cpoptimizer.solve(S,msg=1):
+    if solvers.mip.solve(S,msg=1):
         # %matplotlib inline
         plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
     else:
         print('no solution exists')
 run(S)
 
-
+print(S)
 
 
 # solvers.mip.solve(S,kind='glob')
