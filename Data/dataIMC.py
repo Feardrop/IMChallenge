@@ -1,4 +1,5 @@
-import sys
+import sys, getopt
+import os
 import xlrd
 import math as m
 import random
@@ -16,6 +17,21 @@ import copy
 #                         duration = T[0,c]+T[c,d]+T[0,d] + S_j[c] + S_j[d]))
 #     Tour.pop(k)
 #     savings[c,d] = 0
+
+if len(sys.argv) == 1:
+    pass
+elif sys.argv[1] == "-h":
+    print('''
+        Syntax: filename.py -solver "cluster_length"
+        Für CPLEX '-cp' und MIP '-mip' eingeben.''')
+    quit()
+# else:
+#     print('''
+#         Syntax: filename.py -solver "cluster_length"
+#         Für CPLEX '-cp' und MIP '-mip' eingeben.''')
+#     quit()
+
+
 
 def addNewLine(n):
     lines = {}
@@ -59,21 +75,26 @@ def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
 #         jobs[i] +=
 
 def run(S) : # A small helper method to solve and plot a scenario
-    # if solvers.cpoptimizer.solve(S,msg=1):
-    #     # %matplotlib inline
-    #     plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
-    # el
-    if solvers.mip.solve(S,msg=1):
-        plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
-    else:
-        print('no solution exists')
-        used_P += 1
-
+    try:
+        if sys.argv[1] == "-cp":
+            if solvers.cpoptimizer.solve(S,msg=1):
+                # %matplotlib inline
+                plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
+            else:
+                print('no solution exists')
+                used_P += 1
+        elif sys.argv[1] == "-mip":
+            if solvers.mip.solve(S,msg=1):
+                plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
+            else:
+                print('no solution exists')
+                used_P += 1
+    except:
+        print("\n\n    Keine Berechnung ausgeführt. Für Lösung mit CPLEX '-cp' und mit MIP '-mip' eingeben. \n\n")
 '''
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    Alle gegebenen Werte
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+################################################################################
+#    Alle gegebenen Werte
+################################################################################
 '''
 
 # Zulässige Strahlungswerte und Koeffizient bei 30 min
@@ -157,12 +178,12 @@ array_Time = np.array(Time)
 # print(array_Time)
 
 '''
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    Preprocessing
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+################################################################################
+#    Preprocessing
+################################################################################
 '''
 
-print("\n","#"*40,"\n","    ","Preprocessing","\n","#"*40,"\n")
+print("\n","#"*40,"\n","#    ","Preprocessing","\n","#"*40,"\n")
 
 # Einsatzzeitfenster
 t_a_max = [] # [256 384 520 648]
@@ -216,15 +237,56 @@ for i in range(0,len(t_a_max)):
 time_to_first_use = t_a_range - time_first_last
 # print(time_to_first_use, "time_to_first_use if last product is used at 1075")
 
+print('''
+################################################################################
+#    Clustering der Zeiten.
+#    Matrix gibt an, wie viel in der jeweiligen Zeitperiode gebraucht wird.
+################################################################################
+''')
 
-'''
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    Mengenprüfung ohne beachtung der Produktion.
-    Es sind ausreichend Linien vorhanden und von
-    jeder Art wird ein Batch produziert.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-'''
+
+try:
+    if sys.argv[2] != None:
+        cluster_length = int(sys.argv[2])
+except:
+    cluster_length = 30
+    print("    Standardwert für 'cluster_length="+str(cluster_length)+"' verwendet. \n")
+cluster_value = min(Time_min)
+cluster_Time = []
+
+cluster_Time.append([min(Time_min)])
+while cluster_value <= max(Time_max):
+    cluster_value += cluster_length
+    cluster_Time[0].append(cluster_value)
+cluster_value = min(Time_min)
+for j in range(0,len(array_Time)):
+    cluster_Time.append([0])
+    for k in array_Time[j]:
+        if k == 0:
+            break
+        elif k in range(cluster_value-1,cluster_value+cluster_length+1):
+            cluster_Time[j+1][-1] += 1
+        # elif k in range(cluster_value+cluster_length,cluster_value+cluster_length*2+1):
+        #     cluster_Time[j].append(1)
+        #     cluster_value += cluster_length
+        #
+        #     # cluster_Time[j][-1] += 1
+        else:
+            cluster_Time[j+1].append(0)
+            cluster_value += cluster_length
+
+    cluster_value = min(Time_min)
+    print(cluster_Time[j])
+# cluster_Time[0].append(cluster_value+cluster_length)
+# print(cluster_Time)
+print('''
+################################################################################
+#    Mengenprüfung ohne beachtung der Produktion.
+#    Es sind ausreichend Linien vorhanden und
+#    von jeder Art wird ein Batch produziert.
+################################################################################
+''')
 counter = [0]*P
 store = 0
 x = 0
@@ -261,17 +323,17 @@ print("counter", counter, "\na_end  ", a_end, "\nsumme: ", sum(counter)) # [93, 
 
 
 '''
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    SAVINGS - ALGORITHMUS
-    - berechne Savings
-    - erstelle Pendeltouren
-    - wähle höchste Einsparung und update Tourliste
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+################################################################################
+#    SAVINGS - ALGORITHMUS
+#    - berechne Savings
+#    - erstelle Pendeltouren
+#    - wähle höchste Einsparung und update Tourliste
+################################################################################
 '''
 # Gib Fahrzeitmatrix aus:
 # print(T)
 # Berechne Savings
-print("\n","#"*40,"\n","    ","Savings","\n","#"*40,"\n")
+print("\n","#"*40,"\n","#    ","Savings","\n","#"*40,"\n")
 
 savings = np.zeros((len(T),len(T)))
 for i in range(1,len(T)):
@@ -283,7 +345,7 @@ for i in range(1,len(T)):
             savings[i,j] = x
 print(savings[1:-1,2:])#
 
-print("\n","#"*40,"\n","    ","Pendeltouren","\n","#"*40,"\n")
+print("\n","#"*40,"\n","#    ","Pendeltouren","\n","#"*40,"\n")
 
 # Tourliste
 Tour = []
@@ -328,12 +390,12 @@ while value > 0:
     print("\n","Savings-Wert = ",value,'auf Strecke: [', i, j,']')
 
     '''
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        SAVINGS - ALGORITHMUS
-        - berechne Savings
-        - erstelle Pendeltouren
-        - wähle höchste Einsparung und update Tourliste
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    ################################################################################
+    #    SAVINGS - ALGORITHMUS
+    #    - berechne Savings
+    #    - erstelle Pendeltouren
+    #    - wähle höchste Einsparung und update Tourliste
+    ################################################################################
     '''
     knot_list = [] # liste der Knoten
     # print("N:", new_list)
@@ -504,11 +566,11 @@ lines = { j : S.Resource('line_%i'%j) for j in range(used_P) }
 # lineA, lineB, lineC, lineD = S.Resource('lineA'), S.Resource('lineB'), S.Resource('lineC'), S.Resource('lineD')
 
 '''
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    Suche das kleinste element in der time-matrix das ungleich null ist und
-    setze es in einer 0-1-matrix (used) auf 1.
-    aka. alle Zeiten werden bedient
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+################################################################################
+#    Suche das kleinste element in der time-matrix das ungleich null ist und
+#    setze es in einer 0-1-matrix (used) auf 1.
+#    aka. alle Zeiten werden bedient
+################################################################################
 '''
 
 used = np.full_like(array_Time, False) # array_used_binary
@@ -522,21 +584,21 @@ while not np.array_equal(Time_sd, np.zeros_like(array_Time)):
     usetime = int(array_Time[j,t])
     # print(usetime)
     '''
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    ################################################################################
     prod_end = up_bound
 
     if usetime in range()
 
     addTaskFunc(_task_indx = task_indx, _art = art, _usetime = usetime, _loc = j, scen=S)
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    ################################################################################
     '''
 # print(used)
 
 
 print('''
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    Erstellung neuer Tasks und Prüfung auf Auswirkungen auf Transport
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+################################################################################
+#    Erstellung neuer Tasks und Prüfung auf Auswirkungen auf Transport
+################################################################################
 ''')
 
 
@@ -551,14 +613,10 @@ addTaskFunc(S,3,2,824,5)
 addTaskFunc(S,4,1,965,7)
 
 
-
-
-print()
-
-
+print(S)
 run(S)
 
-print(S)
+
 
 
 # solvers.mip.solve(S,kind='glob')
