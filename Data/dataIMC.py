@@ -6,7 +6,7 @@ import random
 import numpy as np
 import numpy.ma as ma
 from namedlist import namedlist
-from pyschedule import Scenario, solvers, plotters
+from pyschedule import Scenario, solvers, plotters, alt
 import matplotlib
 import matplotlib.pyplot as plt
 import copy
@@ -31,16 +31,25 @@ elif sys.argv[1] == "-h":
 #         Für CPLEX '-cp' und MIP '-mip' eingeben.''')
 #     quit()
 
-
+used_P = 1
+cumul_P = 0
+cumul_L = 0
+cumul_T = 0
 
 def addNewLine(n):
     lines = {}
     lines = { j : S.Resource('line_%i'%j) for j in range(n) }
 def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
+    global cumul_P
     used_tour = []
-    for tour_number in Tour:
-        if _loc in tour_number.list:
-            used_tour = tour_number.list
+    for search_range in range(7):
+        for tour_number in moegliche_Touren:
+            if len(tour_number.list) >= 4:
+                if _loc in tour_number.list[:search_range]:
+                    used_tour = tour_number.list
+                    break
+                else:
+                    search_range += 1
     print(
     "\n usetime: Minute",_usetime,
     "in Location:",_loc, "(" + str(J[_loc]) + ")",
@@ -53,8 +62,10 @@ def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
     up_bound = min(int(_usetime - t_a_max[_art]),int(_usetime - 30 - int(S_j[j])))
 
     jobs[_task_indx] = scen.Task('Task_%d' % _task_indx,int(p_i[_art]))
-    scen += jobs[_task_indx] < up_bound
+    jobs[_task_indx] += alt( scen.resources() )
+    scen += jobs[_task_indx] <= up_bound
     scen += jobs[_task_indx] > low_bound
+    # scen += jobs[_task_indx]*-2
     # resources = ("|".join(map(str, lines)))
     # jobs[_task_indx] += resources
     if len(lines) == 1:
@@ -69,28 +80,50 @@ def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
     task_colors[jobs[_task_indx]] = "#%06x" % random.randint(0, 0xFFFFFF)
     scen.use_makespan_objective(reversed_orientation=True)
 
+    cumul_P += int(p_i[_art])
+
 # def addNewLine()
 #     i = 0
 #     try:
 #         jobs[i] +=
 
 def run(S) : # A small helper method to solve and plot a scenario
-    try:
+        global used_P
+    # try:
         if sys.argv[1] == "-cp":
             if solvers.cpoptimizer.solve(S,msg=1):
                 # %matplotlib inline
                 plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
+                return True
             else:
                 print('no solution exists')
                 used_P += 1
+                return False
         elif sys.argv[1] == "-mip":
-            if solvers.mip.solve(S,msg=1):
+            if solvers.mip.solve(S,kind='CPLEX',msg=1):
                 plotters.matplotlib.plot(S,task_colors=task_colors,fig_size=(10,5))
+                return True
             else:
                 print('no solution exists')
                 used_P += 1
-    except:
-        print("\n\n    Keine Berechnung ausgeführt. Für Lösung mit CPLEX '-cp' und mit MIP '-mip' eingeben. \n\n")
+                return False
+    # except:
+    #     print("\n\n    Keine Berechnung ausgeführt. Für Lösung mit CPLEX '-cp' und mit MIP '-mip' eingeben. \n\n")
+
+
+def calculateCosts(active_V=6, cumul_L=cumul_L, cumul_T=cumul_T, unfinished_orders=0, active_P=used_P, cumul_P=cumul_P):
+    costs = 0
+    costs += active_P * c_PF
+    costs += cumul_P * cp/60
+    costs += active_V * M_F
+    costs += cumul_L * m_v
+    costs += cumul_T * m_t
+    costs += unfinished_orders * M_S
+
+    return costs
+
+
+
 '''
 ################################################################################
 #    Alle gegebenen Werte
@@ -118,6 +151,9 @@ cp	    =   1200    # Stundensatz pro Produktionslinie
 M_F     =   1000    # Fix pro genutztem Fahrzeug
 m_v     =   5       # Entfernungskostensatz pro Fahrzeug
 m_t     =   10      # Stundensatz pro Fahrzeug
+
+# Strafkosten
+M_S     =   1000
 
 # Produktionslinien
 p_i	    =   np.array(( 15,  30,  60, 120))  # Dauer
@@ -414,6 +450,19 @@ while value > 0:
         # print(temp_tour)                         # Neu geformte Tour ausgeben
         if len(temp_tour.list) >=4:
             moegliche_Touren.append(temp_tour)
+        alt_list = [0,j,i,0]
+        # print(alt_list, end='\n\n')
+        alt_route = "alt: "+"-".join(map(str, alt_list[:])) # neue Route für eine neue Tour
+        # neue Länge für eine neue Tour
+        alt_length = [0]
+        alt_duration = [0]
+        for knot in range(0,len(alt_list)-1):
+            alt_length.append(alt_length[-1] + L[alt_list[knot],alt_list[knot+1]])
+            alt_duration.append(int(alt_duration[-1] + T[alt_list[knot],alt_list[knot+1]] + S_j[alt_list[knot+1]]))
+        temp_tour = tour(alt_route, alt_list, alt_length, alt_duration)
+        # print(temp_tour)                         # Neu geformte Tour ausgeben
+        if len(temp_tour.list) >=4:
+            moegliche_Touren.append(temp_tour)
     else:
         new_list = []
         for k in Tour:                          # anhängen oder voranstellen einer
@@ -554,69 +603,88 @@ ends = {}
 task_colors = {}
 task_indx = 0
 art = 0
-used_P = 1
+
 
                                             # def pro(Jobindex, i, )
 
-# Produktionslinien Assignment
-S = Scenario('Produktionsplanung', horizon=1440)
-# Erstelle Lininen
-# addNewLine(used_P)
-lines = { j : S.Resource('line_%i'%j) for j in range(used_P) }
-# lineA, lineB, lineC, lineD = S.Resource('lineA'), S.Resource('lineB'), S.Resource('lineC'), S.Resource('lineD')
 
-'''
-################################################################################
-#    Suche das kleinste element in der time-matrix das ungleich null ist und
-#    setze es in einer 0-1-matrix (used) auf 1.
-#    aka. alle Zeiten werden bedient
-################################################################################
-'''
+def createScenario():
+    global cumul_P
+    cumul_P = 0
+    global used_P
+    # Produktionslinien Assignment
+    S = Scenario('Produktionsplanung', horizon=1440)
+    # Erstelle Lininen
+    # addNewLine(used_P)
+    lines = { j : S.Resource('line_%i'%j) for j in range(used_P) }
+    # lineA, lineB, lineC, lineD = S.Resource('lineA'), S.Resource('lineB'), S.Resource('lineC'), S.Resource('lineD')
 
-used = np.full_like(array_Time, False) # array_used_binary
-Time_sd = ma.masked_values(array_Time[:], 0) # array_Time_search_and_delete_min
-while not np.array_equal(Time_sd, np.zeros_like(array_Time)):
-    j,t = np.unravel_index(Time_sd.argmin(), Time_sd.shape)
-    used[j,t],Time_sd[j,t] = True,0
-    Time_sd = ma.masked_values(Time_sd, 0)
-    # print(used, Time_sd)
-    # createNewTask(j,t)
-    usetime = int(array_Time[j,t])
-    # print(usetime)
     '''
     ################################################################################
-    prod_end = up_bound
-
-    if usetime in range()
-
-    addTaskFunc(_task_indx = task_indx, _art = art, _usetime = usetime, _loc = j, scen=S)
+    #    Suche das kleinste element in der time-matrix das ungleich null ist und
+    #    setze es in einer 0-1-matrix (used) auf 1.
+    #    aka. alle Zeiten werden bedient
     ################################################################################
     '''
-# print(used)
+
+    used = np.full_like(array_Time, False) # array_used_binary
+    Time_sd = ma.masked_values(array_Time[:], 0) # array_Time_search_and_delete_min
+    while not np.array_equal(Time_sd, np.zeros_like(array_Time)):
+        j,t = np.unravel_index(Time_sd.argmin(), Time_sd.shape)
+        used[j,t],Time_sd[j,t] = True,0
+        Time_sd = ma.masked_values(Time_sd, 0)
+        # print(used, Time_sd)
+        # createNewTask(j,t)
+        usetime = int(array_Time[j,t])
+        # print(usetime)
+        '''
+        ################################################################################
+        prod_end = up_bound
+
+        if usetime in range()
+
+        addTaskFunc(_task_indx = task_indx, _art = art, _usetime = usetime, _loc = j, scen=S)
+        ################################################################################
+        '''
+    # print(used)
 
 
-print('''
-################################################################################
-#    Erstellung neuer Tasks und Prüfung auf Auswirkungen auf Transport
-################################################################################
-''')
+    print('''
+    ################################################################################
+    #    Erstellung neuer Tasks und Prüfung auf Auswirkungen auf Transport
+    ################################################################################
+    ''')
 
 
 
 
 
-# addTaskFunc(scen=S, _task_indx = 1, _art = 0, _usetime = 420, _loc = 2)
-# addTaskFunc(S, 2, 2, 800, 5)
-addTaskFunc(S,1,0,420,2)
-addTaskFunc(S,2,1,622,4)
-addTaskFunc(S,3,2,824,5)
-addTaskFunc(S,4,1,965,7)
+    # addTaskFunc(scen=S, _task_indx = 1, _art = 0, _usetime = 420, _loc = 2)
+    # addTaskFunc(S, 2, 2, 800, 5)
+    addTaskFunc(S,1,0,420,2)
+    addTaskFunc(S,2,1,622,4)
+    addTaskFunc(S,3,1,824,5)
+    addTaskFunc(S,4,0,900,2)
+    addTaskFunc(S,5,1,620,2)
+    addTaskFunc(S,6,0,800,2)
+
+    return S
+
+# print(S)
+S = createScenario()
+while run(S) == False:
+    run(S)
+    S = createScenario()
+
+# run(S)
+# print(used_P)
+# S = createScenario()
+# run(S)
+# print(S.resources())
 
 
-print(S)
-run(S)
 
-
+print("Nur Strafkosten:",calculateCosts(cumul_L=0, cumul_T=0, unfinished_orders=315, cumul_P=0, active_V=0, active_P=0))
 
 
 # solvers.mip.solve(S,kind='glob')
