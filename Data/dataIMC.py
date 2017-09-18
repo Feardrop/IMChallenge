@@ -31,13 +31,14 @@ elif sys.argv[1] == "-h":
 #         Für CPLEX '-cp' und MIP '-mip' eingeben.''')
 #     quit()
 
-used_P = 1
+used_P = 3
 cumul_P = 0
 cumul_L = 0
 cumul_T = 0
 task_indxs = []
 use_windows = {}
 instances_task = {}
+instances_task[0] = 1
 used_tours = []
 tour_length = 3
 
@@ -46,12 +47,13 @@ def addNewLine(n):
     lines = { j : S.Resource('line_%i'%j) for j in range(n) }
 def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
     global cumul_P,task_indxs,use_windows, used_tours
-    used_tour = []
+    used_tour = 0
     for search_range in range(7):
         for tour_number in moegliche_Touren:
             if len(tour_number.list) <= tour_length:
                 if _loc in tour_number.list[:search_range]:
-                    used_tour = tour_number.list
+                    used_tour = tour_number
+                    station_no = used_tour.list.index(_loc)
                     if tour_number in used_tours:
                         pass
                     else:
@@ -60,15 +62,16 @@ def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
                 else:
                     search_range += 1
     print(
+    "\n TASK Nummer:", _task_indx,
     "\n usetime: Minute",_usetime,
     "in Location:",_loc, "(" + str(J[_loc]) + ")",
-    "\n befahren in Route",used_tour,
+    "\n befahren in Route",used_tour.list,
     "\n Genutzte Art:",_art,"| Dauer:",int(p_i[_art]),"Minuten"
     "\n Strahlungsrestriktion: Produktionsende zwischen Minute", int(_usetime - t_a_min[_art]),"und",int(_usetime - t_a_max[_art]),
-    "\n Spätestens Losfahren in Minute:",int(_usetime - 30 - int(S_j[j]) - )
+    "\n Spätestens Losfahren in Minute:",int(_usetime - 30 - int(S_j[j]) - used_tour.duration[station_no])
      )
     low_bound = max(-1440,int(_usetime - t_a_min[_art]) - int(p_i[_art]))
-    up_bound = min(int(_usetime - t_a_max[_art]),int(_usetime - 30 - int(S_j[j])))
+    up_bound = min(int(_usetime - t_a_max[_art]),int(_usetime - 30 - int(S_j[j]) - used_tour.duration[station_no]))
 
     jobs[_task_indx] = scen.Task('Task_%d' % _task_indx,int(p_i[_art]))
     jobs[_task_indx] += alt( scen.resources() )
@@ -91,18 +94,13 @@ def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
 
     cumul_P += int(p_i[_art])
     # task_indxs.append(_task_indx)
-    use_windows[_task_indx] = (up_bound+t_a_max[_art],up_bound+t_a_min[_art])
+    # use_windows[_task_indx] = (up_bound+t_a_max[_art],up_bound+t_a_min[_art])
+    use_windows.append((up_bound+t_a_max[_art],up_bound+t_a_min[_art]))
 
 def addNewInstance(_task_indx, _art):
     global instances_task
-    if instances_task[_task_indx] <= b_i[art]:
-        try:
-            instances_task[_task_indx] += 1
-        except:
-            instances_task[_task_indx] = 1
-        return True
-    else:
-        return False
+    instances_task[_task_indx] += 1
+
 
 
 def pickRoute(Node):
@@ -582,9 +580,16 @@ art = 0
 
 
 def createScenario():
-    global cumul_P
+    global cumul_P,cumul_L,cumul_T,used_P,use_windows,task_indxs,instances_task,used_tours
     cumul_P = 0
-    global used_P
+    cumul_L = 0
+    cumul_T = 0
+    task_indxs = []
+    use_windows = []
+    instances_task = {}
+    instances_task[0] = 1
+    used_tours = []
+
     # Produktionslinien Assignment
     S = Scenario('Produktionsplanung', horizon=1440)
     # Erstelle Lininen
@@ -625,35 +630,42 @@ def createScenario():
         route = pickRoute(j)
         # print(route)
 
-        art = 0
+        art = 1
+        print(len(task_indxs))
         if len(task_indxs) == 0:  # Ersten Task erstellen
-            task_indxs.append(1)
+            task_indxs.append(0)
             addTaskFunc(S, _task_indx=task_indxs[0], _art=art, _usetime=usetime, _loc=j)
-        else:
-            continue
 
-        print(use_windows[1])
-        for i in range(1,len(use_windows)):
-            if usetime in range(use_windows[i][0],use_windows[i][1]):
-                if addNewInstance(task_indxs[-1], art) == True:
-                    addNewInstance(task_indxs[-1], art)
+        print(use_windows)
+        print(usetime)
+        print(task_indxs[-1])
 
-                else:
-                    task_indxs.append(task_indxs[-1]+1)
-                    print(task_indxs)
-                    try:
-                        addTaskFunc(S, _task_indx=task_indxs[-1], _art=art, _usetime=usetime, _loc=j)
-                    except:
-                        pass
-                # use task
-                # update resources
+        # for i in range(0,len(use_windows)):
+        if usetime in range(use_windows[-1][0],use_windows[-1][1]):
+            # addNewInstance(task_indxs[-1], art)
+            if instances_task[task_indxs[-1]]+1 <= b_i[art]:
+                addNewInstance(task_indxs[-1], art)
+                print("YES",art, instances_task[task_indxs[-1]], b_i[art])
+                continue
             else:
                 task_indxs.append(task_indxs[-1]+1)
-                try:
-                    addTaskFunc(S, _task_indx=task_indxs[-1], _art=art, _usetime=usetime, _loc=j)
-                except:
-                    continue
+                addTaskFunc(S, _task_indx=task_indxs[-1], _art=art, _usetime=usetime, _loc=j)
+                print("YES/NO",art, instances_task, b_i[art])
+                instances_task[task_indxs[-1]] = 1
+                continue
 
+        else:
+            print("NO")
+            task_indxs.append(task_indxs[-1]+1)
+
+            addTaskFunc(S, _task_indx=task_indxs[-1], _art=art, _usetime=usetime, _loc=j)
+
+            instances_task[task_indxs[-1]] = 1
+
+        try:
+            print(instances_task[task_indxs[-1]] , b_i[art])
+        except:
+            pass
     # print(used)
     # print(task_indxs)
     # print(instances_task)
