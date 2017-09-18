@@ -31,7 +31,7 @@ elif sys.argv[1] == "-h":
 #         Für CPLEX '-cp' und MIP '-mip' eingeben.''')
 #     quit()
 
-used_P = 3
+used_P = 1
 cumul_P = 0
 cumul_L = 0
 cumul_T = 0
@@ -579,8 +579,8 @@ art = 0
                                             # def pro(Jobindex, i, )
 
 
-def createScenario():
-    global cumul_P,cumul_L,cumul_T,used_P,use_windows,task_indxs,instances_task,used_tours
+def createScenario(_P=used_P):
+    global cumul_P,cumul_L,cumul_T,use_windows,task_indxs,instances_task,used_tours
     cumul_P = 0
     cumul_L = 0
     cumul_T = 0
@@ -589,12 +589,10 @@ def createScenario():
     instances_task = {}
     instances_task[0] = 1
     used_tours = []
-
     # Produktionslinien Assignment
     S = Scenario('Produktionsplanung', horizon=1440)
     # Erstelle Lininen
-    # addNewLine(used_P)
-    lines = { j : S.Resource('line_%i'%j) for j in range(used_P) }
+    lines = { j : S.Resource('line_%i'%j) for j in range(_P) }
     # lineA, lineB, lineC, lineD = S.Resource('lineA'), S.Resource('lineB'), S.Resource('lineC'), S.Resource('lineD')
 
     '''
@@ -630,12 +628,13 @@ def createScenario():
         route = pickRoute(j)
         # print(route)
 
-        art = 1
+        art = random.randint(0,3)
+
         print(len(task_indxs))
         if len(task_indxs) == 0:  # Ersten Task erstellen
             task_indxs.append(0)
             addTaskFunc(S, _task_indx=task_indxs[0], _art=art, _usetime=usetime, _loc=j)
-
+            art_store = art
         print(use_windows)
         print(usetime)
         print(task_indxs[-1])
@@ -643,9 +642,9 @@ def createScenario():
         # for i in range(0,len(use_windows)):
         if usetime in range(use_windows[-1][0],use_windows[-1][1]):
             # addNewInstance(task_indxs[-1], art)
-            if instances_task[task_indxs[-1]]+1 <= b_i[art]:
-                addNewInstance(task_indxs[-1], art)
-                print("YES",art, instances_task[task_indxs[-1]], b_i[art])
+            if instances_task[task_indxs[-1]]+1 <= b_i[art_store]:
+                addNewInstance(task_indxs[-1], art_store)
+                print("YES",art_store, instances_task[task_indxs[-1]], b_i[art_store])
                 continue
             else:
                 task_indxs.append(task_indxs[-1]+1)
@@ -692,9 +691,12 @@ def createScenario():
 
 # print(S)
 S = createScenario()
-while run(S) == False:
+count = 0
+maxiter = 12
+while run(S) == False or count >= maxiter:
     run(S)
     S = createScenario()
+    count += 1
 
 # run(S)
 # print(used_P)
