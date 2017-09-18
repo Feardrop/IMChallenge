@@ -35,18 +35,27 @@ used_P = 1
 cumul_P = 0
 cumul_L = 0
 cumul_T = 0
+task_indxs = [1]
+use_windows = {}
+instances_task = {}
+used_tours = []
+tour_length = 4
 
 def addNewLine(n):
     lines = {}
     lines = { j : S.Resource('line_%i'%j) for j in range(n) }
 def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
-    global cumul_P
+    global cumul_P,task_indxs,use_windows, used_tours
     used_tour = []
     for search_range in range(7):
         for tour_number in moegliche_Touren:
-            if len(tour_number.list) >= 4:
+            if len(tour_number.list) >= tour_length:
                 if _loc in tour_number.list[:search_range]:
                     used_tour = tour_number.list
+                    if set(used_tour) in used_tours:
+                        pass
+                    else:
+                        used_tours.append(tour_number)
                     break
                 else:
                     search_range += 1
@@ -81,11 +90,33 @@ def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
     scen.use_makespan_objective(reversed_orientation=True)
 
     cumul_P += int(p_i[_art])
+    # task_indxs.append(_task_indx)
+    use_windows[_task_indx] = (up_bound+t_a_max[_art],up_bound+t_a_min[_art])
 
-# def addNewLine()
-#     i = 0
-#     try:
-#         jobs[i] +=
+def addNewInstance(_task_indx):
+    global instances_task
+    try:
+        instances_task[_task_indx] += 1
+    except:
+        instances_task[_task_indx] = 1
+
+def pickRoute(Node):
+    global used_tours
+    for this_tour in used_tours:
+        if Node in this_tour.list:
+            return this_tour
+            break
+        else:
+            print("keine Route gefunden füge neue Route ein")
+            for search_range in range(7):
+                for tour_number in moegliche_Touren:
+                    if len(tour_number.list) >= tour_length:
+                        if j in tour_number.list[:search_range]:
+                            used_tours.append(tour_number)
+                            return tour_number
+                            break
+                        else:
+                            search_range += 1
 
 def run(S) : # A small helper method to solve and plot a scenario
         global used_P
@@ -279,9 +310,6 @@ print('''
 #    Matrix gibt an, wie viel in der jeweiligen Zeitperiode gebraucht wird.
 ################################################################################
 ''')
-
-
-
 try:
     if sys.argv[2] != None:
         cluster_length = int(sys.argv[2])
@@ -512,68 +540,6 @@ while value > 0:
     print("\n","#"*40)
     savings[i,j] = 0                            # Verwendetes Paar aus-nullen
 
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# # Alter Savingsalgorithmus
-# # hänge neuen Knoten an Anfang oder an Ende
-#     for k in Tour:
-#         # print(k.route, end=' | ')
-# # wenn an Anfang passt, dann erstelle neue Route und entferne alte. Lösche den Gegenwert
-#         print(k.length)
-#         if j == k.list[1] and j != 0:
-#             Tour.append(   tour(route    = '0-' + str(i) + '-' + k.route[2:],
-#                                 list     = [0] + [i] + k.list[1:],
-#                                 length   = k.length - L[0,i] +L[i,j] +L[0,j],
-#                                 duration = int(T[0,i]+T[i,j]+T[0,j] + S_j[i] + S_j[j])))
-#             # Tour.pop(k)
-#             savings[i,j]= 0
-#             count -= 1
-#             break
-#         elif i == k.list[1] and i != 0:
-#             Tour.append(   tour(route    = '0-' + str(j) + '-' + k.route[2:],
-#                                 list     = [0] + [j] + k.list[1:],
-#                                 length   = k.length - L[0,j] +L[j,i] +L[0,i],
-#                                 duration = int(T[0,j]+T[j,i]+T[0,i] + S_j[j] + S_j[i])))
-#             # Tour.pop(k)
-#             savings[i,j] = 0
-#             count -= 1
-#             break
-# # wenn ans Ende passt, dann erstelle neue Route und entferne alte. Lösche den Gegenwert
-#         elif i == k.list[-2] and i != 0:
-#             Tour.append(   tour(route    = k.route[:-2] + '-' + str(j) + '-0',
-#                                 list     = k.list[:-1] + [j] + [0],
-#                                 length   = k.length - L[0,j]+L[j,i]-L[0,i],
-#                                 duration = int(T[0,j]+T[j,i]+T[0,i] + S_j[j] + S_j[i])))
-#             # Tour.pop(k)
-#             savings[i,j] = 0
-#             count -= 1
-#             break
-#         elif j == k.list[-2] and j != 0:
-#             Tour.append(   tour(route    = k.route[:-2] + '-' + str(i) + '-0',
-#                                 list     = k.list[:-1] + [i] + [0],
-#                                 length   = k.length - L[0,i]+L[i,j]-L[0,j],
-#                                 duration = int(T[0,i]+T[i,j]+T[0,j] + S_j[i] + S_j[j])))
-#             # Tour.pop(k)
-#             savings[i,j] = 0
-#             count -= 1
-#             break
-#         else:
-#             # savings[j,i] = 0
-#             savings[i,j] = 0
-#
-#         print(count)
-#     for m in Tour[:count]:
-#         if i in m.list or j in m.list:
-#             # print(i,j, m.list)
-#             Tour.pop(Tour.index(m))
-#
-#         # else:
-#             # print("nothing in: ", m.list)
-#     print("\n")
-#     for n in Tour:
-#         print(n)
-# # Print all Tours.
 print("\n     Savings-Touren:")
 for i in Tour:
     print("\n     ",i)
@@ -629,6 +595,9 @@ def createScenario():
 
     used = np.full_like(array_Time, False) # array_used_binary
     Time_sd = ma.masked_values(array_Time[:], 0) # array_Time_search_and_delete_min
+
+
+
     while not np.array_equal(Time_sd, np.zeros_like(array_Time)):
         j,t = np.unravel_index(Time_sd.argmin(), Time_sd.shape)
         used[j,t],Time_sd[j,t] = True,0
@@ -643,11 +612,40 @@ def createScenario():
 
         if usetime in range()
 
-        addTaskFunc(_task_indx = task_indx, _art = art, _usetime = usetime, _loc = j, scen=S)
+        addTaskFunc(scen=S, _task_indx = task_indx, _art = art, _usetime = usetime, _loc = j)
         ################################################################################
         '''
-    # print(used)
+        route = pickRoute(j)
+        print(pickRoute(j))
 
+
+        art = 0
+        if len(task_indxs) == 1:  # Ersten Task erstellen
+            addTaskFunc(S, _task_indx=task_indxs[0], _art=art, _usetime=usetime, _loc=j)
+        else:
+            continue
+
+        # print(use_windows[task_indx][0])
+        if usetime in range(use_windows[task_indxs[-1]][0],use_windows[task_indxs[-1]][1]):
+            if addNewInstance(task_indxs[-1]) == True:
+                addNewInstance(task_indxs[-1])
+            else:
+                task_indxs.append(task_indxs[-1]+1)
+                try:  # Ersten Task erstellen
+                    addTaskFunc(S, _task_indx=task_indxs[-1], _art=art, _usetime=usetime, _loc=j)
+                except:
+                    pass
+            # use task
+            # update resources
+        else:    # add task
+            task_indxs.append(task_indxs[-1]+1)
+            try:  # Ersten Task erstellen
+                addTaskFunc(S, _task_indx=task_indxs[-1], _art=art, _usetime=usetime, _loc=j)
+            except:
+                continue
+
+    # print(used)
+    print(task_indxs)
 
     print('''
     ################################################################################
@@ -660,13 +658,13 @@ def createScenario():
 
 
     # addTaskFunc(scen=S, _task_indx = 1, _art = 0, _usetime = 420, _loc = 2)
-    # addTaskFunc(S, 2, 2, 800, 5)
-    addTaskFunc(S,1,0,420,2)
-    addTaskFunc(S,2,1,622,4)
-    addTaskFunc(S,3,1,824,5)
-    addTaskFunc(S,4,0,900,2)
-    addTaskFunc(S,5,1,620,2)
-    addTaskFunc(S,6,0,800,2)
+    addTaskFunc(S, 5, 2, 800, 5)
+    # addTaskFunc(S,1,0,420,2)
+    # addTaskFunc(S,2,1,622,4)
+    # addTaskFunc(S,3,1,824,5)
+    # addTaskFunc(S,4,0,900,2)
+    # addTaskFunc(S,5,1,620,2)
+    # addTaskFunc(S,6,0,800,2)
 
     return S
 
@@ -683,7 +681,7 @@ while run(S) == False:
 # print(S.resources())
 
 
-
+print(used_tours)
 print("Nur Strafkosten:",calculateCosts(cumul_L=0, cumul_T=0, unfinished_orders=315, cumul_P=0, active_V=0, active_P=0))
 
 
