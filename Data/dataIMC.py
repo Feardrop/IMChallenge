@@ -35,11 +35,11 @@ used_P = 1
 cumul_P = 0
 cumul_L = 0
 cumul_T = 0
-task_indxs = [1]
+task_indxs = []
 use_windows = {}
 instances_task = {}
 used_tours = []
-tour_length = 4
+tour_length = 3
 
 def addNewLine(n):
     lines = {}
@@ -49,10 +49,10 @@ def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
     used_tour = []
     for search_range in range(7):
         for tour_number in moegliche_Touren:
-            if len(tour_number.list) >= tour_length:
+            if len(tour_number.list) <= tour_length:
                 if _loc in tour_number.list[:search_range]:
                     used_tour = tour_number.list
-                    if set(used_tour) in used_tours:
+                    if tour_number in used_tours:
                         pass
                     else:
                         used_tours.append(tour_number)
@@ -65,7 +65,7 @@ def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
     "\n befahren in Route",used_tour,
     "\n Genutzte Art:",_art,"| Dauer:",int(p_i[_art]),"Minuten"
     "\n Strahlungsrestriktion: Produktionsende zwischen Minute", int(_usetime - t_a_min[_art]),"und",int(_usetime - t_a_max[_art]),
-    "\n Spätestens Losfahren in Minute:",int(_usetime - 30 - int(S_j[j]))
+    "\n Spätestens Losfahren in Minute:",int(_usetime - 30 - int(S_j[j]) - )
      )
     low_bound = max(-1440,int(_usetime - t_a_min[_art]) - int(p_i[_art]))
     up_bound = min(int(_usetime - t_a_max[_art]),int(_usetime - 30 - int(S_j[j])))
@@ -93,30 +93,37 @@ def addTaskFunc(scen, _task_indx, _art, _usetime, _loc):
     # task_indxs.append(_task_indx)
     use_windows[_task_indx] = (up_bound+t_a_max[_art],up_bound+t_a_min[_art])
 
-def addNewInstance(_task_indx):
+def addNewInstance(_task_indx, _art):
     global instances_task
-    try:
-        instances_task[_task_indx] += 1
-    except:
-        instances_task[_task_indx] = 1
+    if instances_task[_task_indx] <= b_i[art]:
+        try:
+            instances_task[_task_indx] += 1
+        except:
+            instances_task[_task_indx] = 1
+        return True
+    else:
+        return False
+
 
 def pickRoute(Node):
     global used_tours
+    # print(used_tours)
     for this_tour in used_tours:
         if Node in this_tour.list:
             return this_tour
             break
         else:
-            print("keine Route gefunden füge neue Route ein")
+            # print("keine Route gefunden füge neue Route ein")
             for search_range in range(7):
                 for tour_number in moegliche_Touren:
-                    if len(tour_number.list) >= tour_length:
+                    if len(tour_number.list) <= tour_length:
                         if j in tour_number.list[:search_range]:
                             used_tours.append(tour_number)
                             return tour_number
                             break
                         else:
                             search_range += 1
+            break
 
 def run(S) : # A small helper method to solve and plot a scenario
         global used_P
@@ -616,37 +623,40 @@ def createScenario():
         ################################################################################
         '''
         route = pickRoute(j)
-        print(pickRoute(j))
-
+        # print(route)
 
         art = 0
-        if len(task_indxs) == 1:  # Ersten Task erstellen
+        if len(task_indxs) == 0:  # Ersten Task erstellen
+            task_indxs.append(1)
             addTaskFunc(S, _task_indx=task_indxs[0], _art=art, _usetime=usetime, _loc=j)
         else:
             continue
 
-        # print(use_windows[task_indx][0])
-        if usetime in range(use_windows[task_indxs[-1]][0],use_windows[task_indxs[-1]][1]):
-            if addNewInstance(task_indxs[-1]) == True:
-                addNewInstance(task_indxs[-1])
+        print(use_windows[1])
+        for i in range(1,len(use_windows)):
+            if usetime in range(use_windows[i][0],use_windows[i][1]):
+                if addNewInstance(task_indxs[-1], art) == True:
+                    addNewInstance(task_indxs[-1], art)
+
+                else:
+                    task_indxs.append(task_indxs[-1]+1)
+                    print(task_indxs)
+                    try:
+                        addTaskFunc(S, _task_indx=task_indxs[-1], _art=art, _usetime=usetime, _loc=j)
+                    except:
+                        pass
+                # use task
+                # update resources
             else:
                 task_indxs.append(task_indxs[-1]+1)
-                try:  # Ersten Task erstellen
+                try:
                     addTaskFunc(S, _task_indx=task_indxs[-1], _art=art, _usetime=usetime, _loc=j)
                 except:
-                    pass
-            # use task
-            # update resources
-        else:    # add task
-            task_indxs.append(task_indxs[-1]+1)
-            try:  # Ersten Task erstellen
-                addTaskFunc(S, _task_indx=task_indxs[-1], _art=art, _usetime=usetime, _loc=j)
-            except:
-                continue
+                    continue
 
     # print(used)
-    print(task_indxs)
-
+    # print(task_indxs)
+    # print(instances_task)
     print('''
     ################################################################################
     #    Erstellung neuer Tasks und Prüfung auf Auswirkungen auf Transport
@@ -658,7 +668,7 @@ def createScenario():
 
 
     # addTaskFunc(scen=S, _task_indx = 1, _art = 0, _usetime = 420, _loc = 2)
-    addTaskFunc(S, 5, 2, 800, 5)
+    # addTaskFunc(S, 5, 2, 800, 5)
     # addTaskFunc(S,1,0,420,2)
     # addTaskFunc(S,2,1,622,4)
     # addTaskFunc(S,3,1,824,5)
@@ -681,7 +691,7 @@ while run(S) == False:
 # print(S.resources())
 
 
-print(used_tours)
+# print(used_tours)
 print("Nur Strafkosten:",calculateCosts(cumul_L=0, cumul_T=0, unfinished_orders=315, cumul_P=0, active_V=0, active_P=0))
 
 
